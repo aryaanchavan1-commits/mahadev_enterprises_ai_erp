@@ -5,6 +5,7 @@ const API = '/api';
 
 export default function SalesPOS() {
   const [products, setProducts] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -29,8 +30,22 @@ export default function SalesPOS() {
     if (barcodeRef.current && scannerMode) barcodeRef.current.focus();
   }, []);
 
+  // Server-side search when user types
+  useEffect(() => {
+    if (search.length >= 2) {
+      const timeout = setTimeout(() => {
+        fetch(`${API}/products?search=${encodeURIComponent(search)}&limit=100`)
+          .then(r => r.json())
+          .then(d => { if (d.success) setSearchResults(d.data); });
+      }, 200);
+      return () => clearTimeout(timeout);
+    } else {
+      setSearchResults([]);
+    }
+  }, [search]);
+
   const fetchProducts = () => {
-    fetch(`${API}/products`).then(r => r.json()).then(d => { if (d.success) setProducts(d.data); });
+    fetch(`${API}/products?limit=5000`).then(r => r.json()).then(d => { if (d.success) setProducts(d.data); });
   };
 
   useEffect(() => {
@@ -49,7 +64,19 @@ export default function SalesPOS() {
     if (!code) return;
 
     try {
-      const res = await fetch(`${API}/products?search=${encodeURIComponent(code)}`);
+      // Try exact barcode lookup first (faster)
+      const bcRes = await fetch(`${API}/products/barcode/${encodeURIComponent(code)}`);
+      if (bcRes.ok) {
+        const bcData = await bcRes.json();
+        if (bcData.success && bcData.data) {
+          addToCart(bcData.data);
+          showToast(`Added: ${bcData.data.name}`, 'success');
+          setBarcodeInput('');
+          return;
+        }
+      }
+      // Fallback to search
+      const res = await fetch(`${API}/products?search=${encodeURIComponent(code)}&limit=10`);
       const data = await res.json();
       if (data.success && data.data.length > 0) {
         const exact = data.data.find(p => p.barcode === code) || data.data[0];
@@ -163,7 +190,7 @@ export default function SalesPOS() {
     documentTitle: `Receipt_${lastInvoice?.invoice_number || 'receipt'}`,
   });
 
-  const filteredProducts = products.filter(p =>
+  const filteredProducts = search.length >= 2 ? searchResults : products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.hsn_code?.includes(search) ||
     p.barcode?.includes(search) ||
@@ -225,7 +252,7 @@ export default function SalesPOS() {
               <table>
                 <thead><tr><th>Product</th><th>Barcode</th><th>HSN</th><th>Price</th><th>Stock</th><th>Action</th></tr></thead>
                 <tbody>
-                  {filteredProducts.slice(0, 30).map(p => (
+                  {filteredProducts.slice(0, 50).map(p => (
                     <tr key={p.id} style={{opacity: p.quantity <= 0 ? 0.5 : 1}}>
                       <td>
                         <div style={{display:'flex',alignItems:'center',gap:8}}>
