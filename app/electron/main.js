@@ -1,14 +1,21 @@
 const { app, BrowserWindow, Tray, Menu, dialog, shell, ipcMain, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { autoUpdater } = require('electron-updater');
+
+let autoUpdater = null;
+try {
+  autoUpdater = require('electron-updater').autoUpdater;
+  if (autoUpdater) {
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = true;
+  }
+} catch (e) {
+  // electron-updater not available - auto-update disabled
+}
 
 let mainWindow = null;
 let tray = null;
 const PORT = 3000;
-
-autoUpdater.autoDownload = false;
-autoUpdater.autoInstallOnAppQuit = true;
 
 function emergLog(msg) {
   try {
@@ -231,31 +238,34 @@ ipcMain.handle('open-external', (event, url) => shell.openExternal(url));
 
 // Auto-update
 function checkForUpdates() {
-  autoUpdater.checkForUpdates().catch(() => {});
+  if (!autoUpdater) return;
+  try { autoUpdater.checkForUpdates().catch(() => {}); } catch {}
 }
 
-autoUpdater.on('update-available', (info) => {
-  if (!mainWindow) return;
-  dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: 'Update Available',
-    message: `Version ${info.version} is available. Download and install now?\n\nYour data will NOT be affected.`,
-    buttons: ['Download & Install', 'Later'],
-    defaultId: 0,
-  }).then(({ response }) => {
-    if (response === 0) autoUpdater.downloadUpdate();
+if (autoUpdater) {
+  autoUpdater.on('update-available', (info) => {
+    if (!mainWindow) return;
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Available',
+      message: `Version ${info.version} is available. Download and install now?\n\nYour data will NOT be affected.`,
+      buttons: ['Download & Install', 'Later'],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.downloadUpdate();
+    });
   });
-});
 
-autoUpdater.on('update-downloaded', (info) => {
-  if (!mainWindow) return;
-  dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: 'Update Ready',
-    message: `Version ${info.version} will install on restart.\nYour data is safe.`,
-    buttons: ['Restart Now', 'Later'],
-    defaultId: 0,
-  }).then(({ response }) => {
-    if (response === 0) autoUpdater.quitAndInstall();
+  autoUpdater.on('update-downloaded', (info) => {
+    if (!mainWindow) return;
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Ready',
+      message: `Version ${info.version} will install on restart.\nYour data is safe.`,
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall();
+    });
   });
-});
+}
