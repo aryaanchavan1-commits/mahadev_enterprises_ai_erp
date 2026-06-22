@@ -43,6 +43,7 @@ async function start() {
   app.use('/api/reports', require('./routes/reports'));
   app.use('/api/vyapar', require('./routes/vyapar'));
   app.use('/api/parties', require('./routes/parties'));
+  app.use('/api/accounting', require('./routes/accounting'));
 
   const clientBuild = path.join(__dirname, 'client', 'dist');
   if (fs.existsSync(clientBuild)) {

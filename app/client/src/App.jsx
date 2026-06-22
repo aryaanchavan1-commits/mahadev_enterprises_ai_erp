@@ -10,6 +10,7 @@ import AIChat from './components/AIChat';
 import Settings from './components/Settings';
 import Reports from './components/Reports';
 import VyaparImport from './components/VyaparImport';
+import Accounting from './components/Accounting';
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -52,6 +53,7 @@ function App() {
     { path: '/invoices', label: 'GST & Invoices', icon: '🧾' },
     { path: '/reports', label: 'Reports', icon: '📈' },
     { path: '/ai', label: 'AI Assistant', icon: '🤖' },
+    { path: '/accounting', label: 'Accounting', icon: '📒' },
     { path: '/vyapar', label: 'Vyapar Import', icon: '📥' },
     { path: '/settings', label: 'Settings', icon: '⚙' },
   ];
@@ -108,6 +110,7 @@ function App() {
               <Route path="/invoices" element={<GSTInvoices />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/ai" element={<AIChat />} />
+              <Route path="/accounting" element={<Accounting />} />
               <Route path="/vyapar" element={<VyaparImport />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>

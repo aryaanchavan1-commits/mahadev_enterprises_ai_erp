@@ -130,12 +130,82 @@ async function getDb() {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+    CREATE TABLE IF NOT EXISTS chart_of_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      account_type TEXT NOT NULL,
+      account_group TEXT DEFAULT '',
+      parent_id INTEGER,
+      opening_balance REAL DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (parent_id) REFERENCES chart_of_accounts(id)
+    );
+    CREATE TABLE IF NOT EXISTS journal_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_number TEXT UNIQUE NOT NULL,
+      entry_date TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      reference_type TEXT DEFAULT '',
+      reference_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS journal_entry_lines (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_id INTEGER NOT NULL,
+      account_id INTEGER NOT NULL,
+      debit REAL DEFAULT 0,
+      credit REAL DEFAULT 0,
+      description TEXT DEFAULT '',
+      FOREIGN KEY (entry_id) REFERENCES journal_entries(id) ON DELETE CASCADE,
+      FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id)
+    );
+    CREATE TABLE IF NOT EXISTS credit_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      credit_note_number TEXT UNIQUE NOT NULL,
+      sale_id INTEGER,
+      customer_id INTEGER,
+      customer_name TEXT DEFAULT '',
+      credit_date TEXT NOT NULL,
+      reason TEXT DEFAULT '',
+      items TEXT NOT NULL,
+      subtotal REAL DEFAULT 0,
+      gst_amount REAL DEFAULT 0,
+      total REAL DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (sale_id) REFERENCES sales(id),
+      FOREIGN KEY (customer_id) REFERENCES parties(id)
+    );
+    CREATE TABLE IF NOT EXISTS debit_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      debit_note_number TEXT UNIQUE NOT NULL,
+      purchase_id INTEGER,
+      supplier_id INTEGER,
+      supplier_name TEXT DEFAULT '',
+      debit_date TEXT NOT NULL,
+      reason TEXT DEFAULT '',
+      items TEXT NOT NULL,
+      subtotal REAL DEFAULT 0,
+      gst_amount REAL DEFAULT 0,
+      total REAL DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (purchase_id) REFERENCES purchases(id),
+      FOREIGN KEY (supplier_id) REFERENCES parties(id)
+    );
   `);
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(sale_date)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_parties_type ON parties(party_type)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_journal_date ON journal_entries(entry_date)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_journal_lines_entry ON journal_entry_lines(entry_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_journal_lines_account ON journal_entry_lines(account_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_credit_notes_sale ON credit_notes(sale_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_debit_notes_purchase ON debit_notes(purchase_id)`);
 
   saveDb();
 
@@ -161,6 +231,69 @@ async function getDb() {
     for (const [k, v] of settingsSeed) {
       db.run('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', [k, v]);
     }
+
+    // Seed chart of accounts (Indian standard)
+    const coaCount = get('SELECT COUNT(*) as c FROM chart_of_accounts').c;
+    if (coaCount === 0) {
+      const accounts = [
+        // Assets
+        ['1000', 'Assets', 'Assets', ''],
+        ['1100', 'Current Assets', 'Assets', '1000'],
+        ['1110', 'Cash in Hand', 'Assets', '1100'],
+        ['1120', 'Bank Account', 'Assets', '1100'],
+        ['1130', 'Accounts Receivable', 'Assets', '1100'],
+        ['1140', 'Inventory (Stock)', 'Assets', '1100'],
+        ['1150', 'GST Input Credit', 'Assets', '1100'],
+        ['1160', 'Prepaid Expenses', 'Assets', '1100'],
+        ['1200', 'Fixed Assets', 'Assets', '1000'],
+        ['1210', 'Furniture & Fixtures', 'Assets', '1200'],
+        ['1220', 'Computer & Equipment', 'Assets', '1200'],
+        // Liabilities
+        ['2000', 'Liabilities', 'Liabilities', ''],
+        ['2100', 'Current Liabilities', 'Liabilities', '2000'],
+        ['2110', 'Accounts Payable', 'Liabilities', '2100'],
+        ['2120', 'GST Output Liability', 'Liabilities', '2100'],
+        ['2130', 'TDS Payable', 'Liabilities', '2100'],
+        ['2140', 'Other Current Liabilities', 'Liabilities', '2100'],
+        ['2200', 'Capital Account', 'Liabilities', '2000'],
+        ['2210', 'Owner Capital', 'Liabilities', '2200'],
+        ['2220', 'Owner Drawings', 'Liabilities', '2200'],
+        // Income
+        ['3000', 'Income', 'Income', ''],
+        ['3100', 'Sales Revenue', 'Income', '3000'],
+        ['3110', 'Sales - Goods', 'Income', '3100'],
+        ['3120', 'Sales - Services', 'Income', '3100'],
+        ['3200', 'Other Income', 'Income', '3000'],
+        ['3210', 'Discount Received', 'Income', '3200'],
+        ['3220', 'Interest Income', 'Income', '3200'],
+        ['3230', 'Commission Income', 'Income', '3200'],
+        // Expenses
+        ['4000', 'Expenses', 'Expenses', ''],
+        ['4100', 'Cost of Goods Sold', 'Expenses', '4000'],
+        ['4110', 'Purchases', 'Expenses', '4100'],
+        ['4120', 'Freight & Transport', 'Expenses', '4100'],
+        ['4200', 'Operating Expenses', 'Expenses', '4000'],
+        ['4210', 'Rent', 'Expenses', '4200'],
+        ['4220', 'Salaries & Wages', 'Expenses', '4200'],
+        ['4230', 'Electricity', 'Expenses', '4200'],
+        ['4240', 'Telephone & Internet', 'Expenses', '4200'],
+        ['4250', 'Office Supplies', 'Expenses', '4200'],
+        ['4260', 'Repair & Maintenance', 'Expenses', '4200'],
+        ['4270', 'Advertising', 'Expenses', '4200'],
+        ['4280', 'Insurance', 'Expenses', '4200'],
+        ['4290', 'Miscellaneous Expenses', 'Expenses', '4200'],
+        ['4300', 'Financial Expenses', 'Expenses', '4000'],
+        ['4310', 'Bank Charges', 'Expenses', '4300'],
+        ['4320', 'Interest Paid', 'Expenses', '4300'],
+        ['4330', 'Discount Allowed', 'Expenses', '4300'],
+      ];
+      for (const [code, name, type, group] of accounts) {
+        const parentId = group ? (get('SELECT id FROM chart_of_accounts WHERE code = ?', [group])?.id || null) : null;
+        db.run('INSERT OR IGNORE INTO chart_of_accounts (code, name, account_type, account_group, parent_id) VALUES (?, ?, ?, ?, ?)',
+          [code, name, type, group || code, parentId]);
+      }
+    }
+
     saveDb();
   }
 
