@@ -423,10 +423,27 @@ export default function SalesPOS() {
           {shopSettings.terms_conditions && (
             <div style={{marginTop:8,fontSize:10,color:'#999',whiteSpace:'pre-wrap'}}>{shopSettings.terms_conditions}</div>
           )}
-          <div style={{display:'flex', gap:8, marginTop:8}}>
+          <div style={{display:'flex', gap:8, marginTop:8, flexWrap:'wrap'}}>
             <button className="btn btn-success" onClick={handlePrintReceipt}>🖨️ Print Receipt</button>
             <button className="btn btn-info" onClick={() => window.open(`${API}/sales/${lastInvoice.id}/receipt`, '_blank')}>📄 Receipt PDF</button>
             <button className="btn btn-warning" onClick={() => window.open(`${API}/gst/bill/${lastInvoice.id}`, '_blank')}>🧾 GST Bill</button>
+            {lastInvoice.customer_phone && (
+              <button className="btn" style={{background:'#25D366',color:'#fff'}} onClick={() => {
+                const phone = lastInvoice.customer_phone.replace(/[^0-9]/g, '');
+                const items = (lastInvoice.items || []).map(i => `${i.product_name} x${i.quantity} = Rs.${(i.sell_price * i.quantity).toFixed(2)}`).join('%0A');
+                const msg = `*${shopSettings.company_name || 'Mahadev Enterprises'}*%0A%0A` +
+                  `Invoice: ${lastInvoice.invoice_number}%0A` +
+                  `Date: ${lastInvoice.sale_date || new Date().toLocaleDateString('en-IN')}%0A%0A` +
+                  `*Items:*%0A${items}%0A%0A` +
+                  `Subtotal: Rs.${Number(lastInvoice.subtotal).toFixed(2)}%0A` +
+                  (lastInvoice.discount_total > 0 ? `Discount: -Rs.${Number(lastInvoice.discount_total).toFixed(2)}%0A` : '') +
+                  (lastInvoice.cgst_total > 0 ? `CGST: Rs.${Number(lastInvoice.cgst_total).toFixed(2)}%0ASGST: Rs.${Number(lastInvoice.sgst_total).toFixed(2)}%0A` : '') +
+                  `*Total: Rs.${Number(lastInvoice.grand_total).toFixed(2)}*%0A%0A` +
+                  `Payment: ${(lastInvoice.payment_mode || 'cash').toUpperCase()}%0A` +
+                  (shopSettings.upi_id ? `UPI: ${shopSettings.upi_id}` : '');
+                window.open(`https://wa.me/91${phone}?text=${msg}`, '_blank');
+              }}>📱 WhatsApp</button>
+            )}
             <button className="btn btn-outline" onClick={() => setLastInvoice(null)}>✕ Close</button>
           </div>
         </div>
