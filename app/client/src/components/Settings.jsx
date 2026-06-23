@@ -15,6 +15,7 @@ export default function Settings() {
   const [toast, setToast] = useState(null);
   const [saving, setSaving] = useState(false);
   const [logoPreview, setLogoPreview] = useState(null);
+  const [backupInfo, setBackupInfo] = useState(null);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });

@@ -56,11 +56,11 @@
     ],
     "files": [
       "db.js",
+      "server.js",
       "routes/**/*",
       "electron/**/*",
-      "vyapar_importer.js",
       "client/dist/**/*",
-      "data/.gitkeep",
+      "data/**/*",
       "node_modules/**/*",
       "!node_modules/electron/**",
       "!node_modules/electron-builder/**",
@@ -68,12 +68,6 @@
       "!node_modules/wait-on/**",
       "!node_modules/.cache/**",
       "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "data",
-        "to": "data"
-      }
     ],
     "win": {
       "target": [

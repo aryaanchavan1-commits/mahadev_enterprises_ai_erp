@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { get, all, run } = require('../db');
+const path = require('path');
+const fs = require('fs');
+const { get, all, run, dataDir } = require('../db');
 
 router.get('/', (req, res) => {
   try {
@@ -26,6 +28,103 @@ router.put('/', (req, res) => {
       run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [key, String(value)]);
     }
     res.json({ success: true, message: 'Settings updated' });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Backup - returns database file path
+router.get('/backup/info', (req, res) => {
+  try {
+    const dbPath = path.join(dataDir, 'mahadev_erp.db');
+    const exists = fs.existsSync(dbPath);
+    const size = exists ? fs.statSync(dbPath).size : 0;
+    const uploadsDir = path.join(dataDir, 'uploads');
+    const barcodesDir = path.join(dataDir, 'barcodes');
+    let uploadsCount = 0, barcodesCount = 0;
+    try { uploadsCount = fs.readdirSync(uploadsDir).filter(f => !f.startsWith('.')).length; } catch {}
+    try { barcodesCount = fs.readdirSync(barcodesDir).filter(f => !f.startsWith('.')).length; } catch {}
+    res.json({
+      success: true,
+      data: {
+        dbPath,
+        dbSize: size,
+        dbSizeFormatted: size > 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)} MB` : `${(size / 1024).toFixed(1)} KB`,
+        uploadsCount,
+        barcodesCount,
+        dataDir,
+      }
+    });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Backup - copy database to user-specified location
+router.post('/backup/create', express.json(), (req, res) => {
+  try {
+    const { backupPath } = req.body;
+    if (!backupPath) return res.status(400).json({ success: false, error: 'Backup path required' });
+
+    const dbPath = path.join(dataDir, 'mahadev_erp.db');
+    if (!fs.existsSync(dbPath)) return res.status(404).json({ success: false, error: 'Database not found' });
+
+    // Create backup folder
+    const backupDir = path.join(backupPath, `Mahadev_ERP_Backup_${new Date().toISOString().slice(0, 10)}`);
+    fs.mkdirSync(backupDir, { recursive: true });
+
+    // Copy database
+    const dbBackup = path.join(backupDir, 'mahadev_erp.db');
+    fs.copyFileSync(dbPath, dbBackup);
+
+    // Copy uploads
+    const uploadsDir = path.join(dataDir, 'uploads');
+    if (fs.existsSync(uploadsDir)) {
+      const uploadsBackup = path.join(backupDir, 'uploads');
+      fs.mkdirSync(uploadsBackup, { recursive: true });
+      fs.readdirSync(uploadsDir).forEach(f => {
+        if (!f.startsWith('.')) {
+          try { fs.copyFileSync(path.join(uploadsDir, f), path.join(uploadsBackup, f)); } catch {}
+        }
+      });
+    }
+
+    // Copy barcodes
+    const barcodesDir = path.join(dataDir, 'barcodes');
+    if (fs.existsSync(barcodesDir)) {
+      const barcodesBackup = path.join(backupDir, 'barcodes');
+      fs.mkdirSync(barcodesBackup, { recursive: true });
+      fs.readdirSync(barcodesDir).forEach(f => {
+        if (!f.startsWith('.')) {
+          try { fs.copyFileSync(path.join(barcodesDir, f), path.join(barcodesBackup, f)); } catch {}
+        }
+      });
+    }
+
+    const totalSize = fs.statSync(dbBackup).size;
+    res.json({
+      success: true,
+      message: `Backup created at ${backupDir}`,
+      data: {
+        path: backupDir,
+        dbSize: totalSize > 1024 * 1024 ? `${(totalSize / 1024 / 1024).toFixed(1)} MB` : `${(totalSize / 1024).toFixed(1)} KB`,
+      }
+    });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Restore - copy database from user-specified location
+router.post('/restore', express.json(), (req, res) => {
+  try {
+    const { backupPath } = req.body;
+    if (!backupPath) return res.status(400).json({ success: false, error: 'Backup path required' });
+
+    const dbBackup = path.join(backupPath, 'mahadev_erp.db');
+    if (!fs.existsSync(dbBackup)) return res.status(404).json({ success: false, error: 'Backup database not found' });
+
+    const dbPath = path.join(dataDir, 'mahadev_erp.db');
+
+    // Close existing connections would be needed here
+    // For safety, just copy
+    fs.copyFileSync(dbBackup, dbPath);
+
+    res.json({ success: true, message: 'Database restored. Please restart the app.' });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 

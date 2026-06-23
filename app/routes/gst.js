@@ -137,7 +137,8 @@ router.get('/bill/:saleId', (req, res) => {
 
     // Table rows
     sale.items.forEach((item, i) => {
-      const lineTotal = item.sell_price * item.quantity;
+      const price = item.sell_price || item.unit_price || 0;
+      const lineTotal = price * item.quantity;
       const discAmt = lineTotal * (item.discount_percent || 0) / 100;
       const taxable = lineTotal - discAmt;
       const rate = item.gst_percentage || 18;
@@ -158,7 +159,7 @@ router.get('/bill/:saleId', (req, res) => {
         hsn: item.hsn_code || '-',
         qty: String(item.quantity),
         unit: 'NOS',
-        rate: item.sell_price.toFixed(2),
+        rate: price.toFixed(2),
         disc: (item.discount_percent || 0).toString(),
         taxable: taxable.toFixed(2),
         cgst: cgst.toFixed(2),
@@ -243,7 +244,7 @@ router.get('/bill/:saleId', (req, res) => {
       sale.items.forEach(item => {
         const rate = item.gst_percentage || 18;
         if (!taxByRate[rate]) taxByRate[rate] = { taxable: 0, cgst: 0, sgst: 0 };
-        const lt = item.sell_price * item.quantity;
+        const lt = (item.sell_price || item.unit_price || 0) * item.quantity;
         const da = lt * (item.discount_percent || 0) / 100;
         const tx = lt - da;
         taxByRate[rate].taxable += tx;
@@ -368,10 +369,10 @@ router.get('/receipt/:saleId', (req, res) => {
     doc.font('Helvetica').fontSize(6);
     sale.items.forEach(item => {
       const name = (item.product_name || 'Item').substring(0, 22);
-      const total = item.sell_price * item.quantity;
+      const total = (item.sell_price || item.unit_price || 0) * item.quantity;
       doc.text(name, 5, y);
       doc.text(String(item.quantity), 140, y, { width: 25, align: 'center' });
-      doc.text(item.sell_price.toFixed(0), 165, y, { width: 30, align: 'right' });
+      doc.text((item.sell_price || item.unit_price || 0).toFixed(0), 165, y, { width: 30, align: 'right' });
       doc.text(total.toFixed(2), 195, y, { width: 26, align: 'right' });
       y += 8;
     });
@@ -477,7 +478,7 @@ router.get('/gstr1', (req, res) => {
       items.forEach(item => {
         const hsn = item.hsn_code || 'NA';
         if (!hsnSummary[hsn]) hsnSummary[hsn] = { hsn_code: hsn, description: item.product_name, qty: 0, taxable: 0, cgst: 0, sgst: 0, total: 0 };
-        const lt = item.sell_price * item.quantity;
+        const lt = (item.sell_price || item.unit_price || 0) * item.quantity;
         const da = lt * (item.discount_percent || 0) / 100;
         const tx = lt - da;
         const rate = item.gst_percentage || 18;
@@ -533,7 +534,7 @@ router.get('/gstr1/export', (req, res) => {
           inum: sale.invoice_number, idt: sale.sale_date, val: Math.round(sale.grand_total * 100) / 100,
           pos: (s.place_of_supply || 'Maharashtra').substring(0, 2), rchrg: s.reverse_charge === '1' ? 'Y' : 'N', inv_typ: 'R',
           itms: items.map((item, idx) => {
-            const lt = item.sell_price * item.quantity;
+            const lt = (item.sell_price || item.unit_price || 0) * item.quantity;
             const da = lt * (item.discount_percent || 0) / 100;
             const tx = lt - da;
             const rate = item.gst_percentage || 18;
@@ -568,7 +569,7 @@ router.get('/hsn-summary', (req, res) => {
       items.forEach(item => {
         const hsn = item.hsn_code || 'NA';
         if (!hsnMap[hsn]) hsnMap[hsn] = { hsn_code: hsn, description: item.product_name, qty: 0, taxable: 0, cgst: 0, sgst: 0, total: 0 };
-        const lt = item.sell_price * item.quantity;
+        const lt = (item.sell_price || item.unit_price || 0) * item.quantity;
         const da = lt * (item.discount_percent || 0) / 100;
         const tx = lt - da;
         const rate = item.gst_percentage || 18;

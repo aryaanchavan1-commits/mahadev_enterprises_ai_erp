@@ -41,7 +41,8 @@ router.post('/', (req, res) => {
       if (product.quantity < item.quantity) {
         return res.status(400).json({ success: false, error: `Insufficient stock for ${product.name}. Available: ${product.quantity}` });
       }
-      const lineTotal = item.sell_price * item.quantity;
+      const price = item.sell_price || item.unit_price || 0;
+      const lineTotal = price * item.quantity;
       const lineDiscount = lineTotal * (item.discount_percent || 0) / 100;
       const afterDiscount = lineTotal - lineDiscount;
 
@@ -166,14 +167,15 @@ router.get('/:id/receipt', (req, res) => {
       doc.font('Helvetica').fontSize(7);
       sale.items.forEach((item, idx) => {
         const y = doc.y;
-        const lineTotal = item.sell_price * item.quantity;
+        const price = item.sell_price || item.unit_price || 0;
+        const lineTotal = price * item.quantity;
         const taxAmt = item.gst_amount || (lineTotal * (item.gst_percentage || 18) / 100);
         x = 40;
         doc.text(String(idx + 1), x, y, { width: colWidths[0], align: 'center' }); x += colWidths[0];
         doc.text(item.product_name || 'Product', x, y, { width: colWidths[1] }); x += colWidths[1];
         doc.text(item.hsn_code || '-', x, y, { width: colWidths[2], align: 'center' }); x += colWidths[2];
         doc.text(String(item.quantity), x, y, { width: colWidths[3], align: 'center' }); x += colWidths[3];
-        doc.text(`Rs.${item.sell_price.toFixed(2)}`, x, y, { width: colWidths[4], align: 'right' }); x += colWidths[4];
+        doc.text(`Rs.${price.toFixed(2)}`, x, y, { width: colWidths[4], align: 'right' }); x += colWidths[4];
         doc.text(`Rs.${lineTotal.toFixed(2)}`, x, y, { width: colWidths[5], align: 'right' }); x += colWidths[5];
         doc.text(`Rs.${taxAmt.toFixed(2)}`, x, y, { width: colWidths[6], align: 'right' });
         doc.moveDown(0.3);
@@ -192,9 +194,12 @@ router.get('/:id/receipt', (req, res) => {
       sale.items.forEach(item => {
         const rate = item.gst_percentage || 18;
         if (!taxByRate[rate]) taxByRate[rate] = { taxable: 0, tax: 0 };
-        const lineTotal = item.sell_price * item.quantity;
-        taxByRate[rate].taxable += lineTotal;
-        taxByRate[rate].tax += item.gst_amount || (lineTotal * rate / 100);
+        const price = item.sell_price || item.unit_price || 0;
+        const lineTotal = price * item.quantity;
+        const discAmt = lineTotal * (item.discount_percent || 0) / 100;
+        const taxable = lineTotal - discAmt;
+        taxByRate[rate].taxable += taxable;
+        taxByRate[rate].tax += taxable * (rate / 100);
       });
 
       Object.entries(taxByRate).forEach(([rate, vals]) => {
@@ -213,9 +218,10 @@ router.get('/:id/receipt', (req, res) => {
       doc.text('─'.repeat(40));
       for (const item of sale.items) {
         const name = (item.product_name || 'Product').substring(0, 18).padEnd(18);
+        const price = item.sell_price || item.unit_price || 0;
         const qty = String(item.quantity).padStart(3);
-        const rate = String(item.sell_price.toFixed(0)).padStart(5);
-        const total = String((item.sell_price * item.quantity).toFixed(2)).padStart(7);
+        const rate = String(price.toFixed(0)).padStart(5);
+        const total = String((price * item.quantity).toFixed(2)).padStart(7);
         doc.text(`${name}${qty}${rate}${total}`);
       }
       doc.text('─'.repeat(40));
