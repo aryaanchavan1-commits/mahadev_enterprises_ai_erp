@@ -19,7 +19,7 @@ export default function Products() {
 
   const emptyProduct = {
     name: '', image: '', quantity: 0, description: '', hsn_code: '',
-    sell_price: 0, inward_price: 0, serial_number: '', discount_percent: 0,
+    sell_price: 0, wholesale_price: 0, inward_price: 0, serial_number: '', discount_percent: 0,
     barcode: '', category_id: ''
   };
 
@@ -175,8 +175,8 @@ export default function Products() {
             <div className="form-row">
               <div className="form-group"><label>Quantity</label><input type="number" value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} /></div>
               <div className="form-group"><label>Sell Price (₹)</label><input type="number" step="0.01" value={form.sell_price} onChange={e => setForm({ ...form, sell_price: Number(e.target.value) })} /></div>
+              <div className="form-group"><label>Wholesale Price (₹)</label><input type="number" step="0.01" value={form.wholesale_price} onChange={e => setForm({ ...form, wholesale_price: Number(e.target.value) })} /></div>
               <div className="form-group"><label>Cost Price (₹)</label><input type="number" step="0.01" value={form.inward_price} onChange={e => setForm({ ...form, inward_price: Number(e.target.value) })} /></div>
-              <div className="form-group"><label>Discount %</label><input type="number" step="0.1" value={form.discount_percent} onChange={e => setForm({ ...form, discount_percent: Number(e.target.value) })} /></div>
             </div>
             <div className="form-row">
               <div className="form-group"><label>Barcode</label><input value={form.barcode} onChange={e => setForm({ ...form, barcode: e.target.value })} placeholder="Auto if empty" /></div>

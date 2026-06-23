@@ -238,16 +238,17 @@ async function importFromVyp(vypDb, opts) {
         let sp = safeNum(it.item_sale_unit_price);
         const mrp = safeNum(it.item_mrp), wp = safeNum(it.item_wholesale_price), pp = safeNum(it.item_purchase_unit_price);
         if (sp <= 0) sp = mrp || wp || pp;
+        const wholesale = wp || sp * 0.9;
         const gst = taxMap[safeInt(it.item_tax_id)] || 18;
         const cat = itemCategory[iid] || null;
         const qty = safeInt(it.item_stock_quantity);
         const ms = Math.max(1, safeInt(it.item_min_stock_quantity, 5));
         const hsn = safeStr(it.item_hsn_sac_code);
         const desc = safeStr(it.item_description);
-        run(`INSERT INTO products (name, quantity, description, hsn_code, sell_price, inward_price,
+        run(`INSERT INTO products (name, quantity, description, hsn_code, sell_price, wholesale_price, inward_price,
              serial_number, barcode, category_id, gst_rate, discount_percent)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [name, qty, desc, hsn, sp, pp, `ME-SN-${iid}-${Date.now()}`, barcode, cat, gst, 0]
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [name, qty, desc, hsn, sp, wholesale, pp, `ME-SN-${iid}-${Date.now()}`, barcode, cat, gst, 0]
         );
         productMap[iid] = lastInsertRowid();
         existingNames.add(name.toLowerCase());

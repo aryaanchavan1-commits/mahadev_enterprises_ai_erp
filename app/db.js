@@ -48,15 +48,16 @@ async function getDb() {
       description TEXT DEFAULT '',
       hsn_code TEXT DEFAULT '',
       sell_price REAL DEFAULT 0,
+      wholesale_price REAL DEFAULT 0,
       inward_price REAL DEFAULT 0,
       serial_number TEXT UNIQUE,
       discount_percent REAL DEFAULT 0,
       barcode TEXT UNIQUE,
       barcode_image TEXT DEFAULT '',
       category_id INTEGER,
-      subcategory_id INTEGER,
       gst_rate REAL DEFAULT 18,
       supplier_id INTEGER,
+      is_active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );

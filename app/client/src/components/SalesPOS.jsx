@@ -14,6 +14,10 @@ export default function SalesPOS() {
   const [toast, setToast] = useState(null);
   const [lastInvoice, setLastInvoice] = useState(null);
   const [shopSettings, setShopSettings] = useState({});
+  const [gstEnabled, setGstEnabled] = useState(true);
+  const [billingMode, setBillingMode] = useState('b2c');
+  const [editPrice, setEditPrice] = useState(null);
+  const [editPriceValue, setEditPriceValue] = useState('');
   const printRef = useRef(null);
   const barcodeRef = useRef(null);
 
@@ -25,7 +29,11 @@ export default function SalesPOS() {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
-    fetch(`${API}/settings`).then(r => r.json()).then(d => { if (d.data) setShopSettings(d.data || d); });
+    fetch(`${API}/settings`).then(r => r.json()).then(d => {
+      const s = d.data || d;
+      setShopSettings(s);
+      setGstEnabled(s.gst_enabled !== '0' && s.gst_enabled !== 'false');
+    });
     barcodeRef.current?.focus();
   }, []);
 
@@ -44,7 +52,7 @@ export default function SalesPOS() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, customer, paymentMode]);
+  }, [cart, customer, paymentMode, gstEnabled]);
 
   const handleBarcodeScan = useCallback(async (e) => {
     if (e.key !== 'Enter') return;
@@ -75,23 +83,37 @@ export default function SalesPOS() {
 
   const addToCart = (product) => {
     if (product.quantity <= 0) { showToast(`${product.name} is out of stock!`, 'error'); return; }
+    const basePrice = billingMode === 'b2b' ? (product.wholesale_price || product.sell_price) : product.sell_price;
     const existing = cart.find(i => i.product_id === product.id);
     if (existing) {
       if (existing.quantity >= product.quantity) { showToast(`Only ${product.quantity} left!`, 'error'); return; }
       setCart(cart.map(i => i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
     } else {
-      setCart([...cart, { product_id: product.id, product_name: product.name, hsn_code: product.hsn_code, sell_price: product.sell_price, gst_percentage: product.gst_percentage || 18, quantity: 1, max_quantity: product.quantity, barcode: product.barcode }]);
+      setCart([...cart, {
+        product_id: product.id,
+        product_name: product.name,
+        hsn_code: product.hsn_code,
+        sell_price: product.sell_price,
+        wholesale_price: product.wholesale_price || product.sell_price,
+        custom_price: basePrice,
+        gst_percentage: product.gst_percentage || 18,
+        quantity: 1,
+        max_quantity: product.quantity,
+        barcode: product.barcode,
+        discount_percent: 0
+      }]);
     }
     setSearch('');
   };
 
   const removeFromCart = (id) => setCart(cart.filter(i => i.product_id !== id));
   const updateQty = (id, qty) => setCart(cart.map(i => i.product_id === id ? { ...i, quantity: Math.max(1, Math.min(qty, i.max_quantity)) } : i));
+  const updateCustomPrice = (id, price) => setCart(cart.map(i => i.product_id === id ? { ...i, custom_price: Math.max(0, price) } : i));
+  const updateItemDiscount = (id, disc) => setCart(cart.map(i => i.product_id === id ? { ...i, discount_percent: Math.min(100, Math.max(0, disc)) } : i));
 
-  const cartSubtotal = cart.reduce((s, i) => s + (i.sell_price * i.quantity), 0);
-  const cartDiscount = cart.reduce((s, i) => s + ((i.sell_price * i.quantity) * (i.discount_percent || 0) / 100), 0);
+  const cartSubtotal = cart.reduce((s, i) => s + ((i.custom_price || i.sell_price) * i.quantity), 0);
+  const cartDiscount = cart.reduce((s, i) => s + (((i.custom_price || i.sell_price) * i.quantity) * (i.discount_percent || 0) / 100), 0);
   const afterDiscount = cartSubtotal - cartDiscount;
-  const gstEnabled = shopSettings.gst_enabled !== '0' && shopSettings.gst_enabled !== 'false';
   const gstRate = parseFloat(shopSettings.gst_rate) || 18;
   const cgstRate = parseFloat(shopSettings.cgst_rate) || gstRate / 2;
   const sgstRate = parseFloat(shopSettings.sgst_rate) || gstRate / 2;
@@ -105,17 +127,24 @@ export default function SalesPOS() {
   const handleCheckout = async () => {
     if (cart.length === 0) return showToast('Cart is empty', 'error');
     try {
-      let finalCustomerId = null;
-      let finalCustomerName = customer.name || 'Walk-in Customer';
-      if (customer.name && customer.name !== 'Walk-in Customer' && customer.phone) {
-        try {
-          const { data: c } = await fetch(`${API}/customers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: customer.name, phone: customer.phone }) }).then(r => r.json());
-          if (c?.id) { finalCustomerId = c.id; finalCustomerName = c.name; }
-        } catch {}
-      }
       const r = await fetch(`${API}/sales`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: cart.map(i => ({ product_id: i.product_id, product_name: i.product_name, hsn_code: i.hsn_code, quantity: i.quantity, sell_price: i.sell_price, gst_percentage: i.gst_percentage })), customer_name: finalCustomerName, customer_phone: customer.phone, customer_gstin: customer.gstin, payment_mode: paymentMode, gst_enabled: gstEnabled })
+        body: JSON.stringify({
+          items: cart.map(i => ({
+            product_id: i.product_id,
+            product_name: i.product_name,
+            hsn_code: i.hsn_code,
+            quantity: i.quantity,
+            sell_price: i.custom_price || i.sell_price,
+            gst_percentage: i.gst_percentage
+          })),
+          customer_name: customer.name || 'Walk-in Customer',
+          customer_phone: customer.phone,
+          customer_gstin: customer.gstin,
+          payment_mode: paymentMode,
+          gst_enabled: gstEnabled,
+          billing_mode: billingMode
+        })
       });
       const d = await r.json();
       if (d.success) {
@@ -129,17 +158,14 @@ export default function SalesPOS() {
     } catch { showToast('Checkout failed', 'error'); }
   };
 
-  // Filter products by selected category, sorted A-Z
   const categoryProducts = selectedCat
     ? products.filter(p => p.category_id === selectedCat).sort((a, b) => a.name.localeCompare(b.name))
     : products.slice().sort((a, b) => a.name.localeCompare(b.name));
 
-  // Search filter, sorted A-Z
   const filteredProducts = search.length >= 2
     ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.hsn_code?.includes(search)).sort((a, b) => a.name.localeCompare(b.name))
     : categoryProducts;
 
-  // Category with product counts
   const catCounts = {};
   products.forEach(p => { if (p.category_id) catCounts[p.category_id] = (catCounts[p.category_id] || 0) + 1; });
 
@@ -164,7 +190,7 @@ export default function SalesPOS() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 380px', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 400px', gap: 16 }}>
 
         {/* CATEGORY SIDEBAR */}
         <div className="card" style={{ padding: 12, maxHeight: 500, overflowY: 'auto' }}>
@@ -218,7 +244,7 @@ export default function SalesPOS() {
           {filteredProducts.length === 0 && (
             <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
               <p style={{ fontSize: 48, marginBottom: 8 }}>📦</p>
-              <p>No products in this category</p>
+              <p>No products</p>
             </div>
           )}
         </div>
@@ -226,33 +252,66 @@ export default function SalesPOS() {
         {/* CART & CHECKOUT */}
         <div>
           <div className="card" style={{ padding: 12 }}>
-            <h3 style={{ marginBottom: 12 }}>🛒 Cart ({cart.length})</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3>🛒 Cart ({cart.length})</h3>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                <input type="checkbox" checked={gstEnabled} onChange={e => setGstEnabled(e.target.checked)} style={{ width: 16, height: 16 }} />
+                GST
+              </label>
+              <select value={billingMode} onChange={e => setBillingMode(e.target.value)} style={{ width: 80, fontSize: 11, padding: '4px 6px' }}>
+                <option value="b2c">B2C</option>
+                <option value="b2b">B2B</option>
+              </select>
+            </div>
+            </div>
 
             <div style={{ marginBottom: 12 }}>
               <input placeholder="Customer name" value={customer.name} onChange={e => setCustomer({ ...customer, name: e.target.value })} style={{ marginBottom: 6 }} />
-              <input placeholder="Phone (optional)" value={customer.phone} onChange={e => setCustomer({ ...customer, phone: e.target.value })} style={{ marginBottom: 6 }} />
-              <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
-                <option value="cash">💵 Cash</option>
-                <option value="upi">📱 UPI</option>
-                <option value="card">💳 Card</option>
-                <option value="credit">📝 Credit</option>
-              </select>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input placeholder="Phone" value={customer.phone} onChange={e => setCustomer({ ...customer, phone: e.target.value })} style={{ flex: 1 }} />
+                <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} style={{ width: 100 }}>
+                  <option value="cash">💵 Cash</option>
+                  <option value="upi">📱 UPI</option>
+                  <option value="card">💳 Card</option>
+                  <option value="credit">📝 Credit</option>
+                </select>
+              </div>
+              {gstEnabled && <input placeholder="Customer GSTIN (optional)" value={customer.gstin} onChange={e => setCustomer({ ...customer, gstin: e.target.value })} style={{ marginTop: 6 }} />}
             </div>
 
-            <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 12 }}>
-              {cart.map(item => (
-                <div key={item.product_id} style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product_name}</div>
-                    <div style={{ fontSize: 10, color: '#999' }}>₹{item.sell_price} × {item.quantity}</div>
+            <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 12 }}>
+              {cart.map(item => {
+                const price = item.custom_price || item.sell_price;
+                const lineTotal = price * item.quantity;
+                const discAmt = lineTotal * (item.discount_percent || 0) / 100;
+                const finalPrice = lineTotal - discAmt;
+                return (
+                  <div key={item.product_id} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product_name}</div>
+                        <div style={{ fontSize: 10, color: '#999' }}>₹{item.sell_price} each</div>
+                      </div>
+                      <button onClick={() => updateQty(item.product_id, item.quantity - 1)} style={{ width: 24, height: 24, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer', fontSize: 12 }}>-</button>
+                      <span style={{ width: 24, textAlign: 'center', fontSize: 12, fontWeight: 700 }}>{item.quantity}</span>
+                      <button onClick={() => updateQty(item.product_id, item.quantity + 1)} style={{ width: 24, height: 24, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer', fontSize: 12 }}>+</button>
+                      <span style={{ width: 70, textAlign: 'right', fontSize: 12, fontWeight: 600 }}>₹{finalPrice.toFixed(0)}</span>
+                      <button onClick={() => removeFromCart(item.product_id)} style={{ width: 20, height: 20, border: 'none', background: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: 14 }}>✕</button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, marginTop: 4, fontSize: 11 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666' }}>Price:</span>
+                        <input type="number" value={price} onChange={e => updateCustomPrice(item.product_id, Number(e.target.value))} style={{ width: 70, padding: '2px 4px', fontSize: 11 }} step="0.01" />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666' }}>Disc%:</span>
+                        <input type="number" value={item.discount_percent || 0} onChange={e => updateItemDiscount(item.product_id, Number(e.target.value))} style={{ width: 45, padding: '2px 4px', fontSize: 11 }} min="0" max="100" />
+                      </div>
+                    </div>
                   </div>
-                  <button onClick={() => updateQty(item.product_id, item.quantity - 1)} style={{ width: 24, height: 24, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer', fontSize: 12 }}>-</button>
-                  <span style={{ width: 24, textAlign: 'center', fontSize: 12, fontWeight: 700 }}>{item.quantity}</span>
-                  <button onClick={() => updateQty(item.product_id, item.quantity + 1)} style={{ width: 24, height: 24, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer', fontSize: 12 }}>+</button>
-                  <span style={{ width: 60, textAlign: 'right', fontSize: 12, fontWeight: 600 }}>₹{(item.sell_price * item.quantity).toFixed(0)}</span>
-                  <button onClick={() => removeFromCart(item.product_id)} style={{ width: 20, height: 20, border: 'none', background: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: 14 }}>✕</button>
-                </div>
-              ))}
+                );
+              })}
               {cart.length === 0 && <div style={{ textAlign: 'center', padding: 20, color: '#999', fontSize: 12 }}>Scan barcode or click products</div>}
             </div>
 
@@ -261,6 +320,7 @@ export default function SalesPOS() {
               {cartDiscount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4, color: '#27ae60' }}><span>Discount</span><span>-₹{cartDiscount.toFixed(2)}</span></div>}
               {gstEnabled && cgstTotal > 0 && <><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}><span>CGST @{cgstRate}%</span><span>₹{cgstTotal.toFixed(2)}</span></div><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}><span>SGST @{sgstRate}%</span><span>₹{sgstTotal.toFixed(2)}</span></div></>}
               {gstEnabled && igstTotal > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}><span>IGST @{igstRate}%</span><span>₹{igstTotal.toFixed(2)}</span></div>}
+              {!gstEnabled && <div style={{ fontSize: 11, color: '#e74c3c', marginBottom: 4 }}>Non-GST Bill</div>}
               <hr />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 18, marginTop: 8 }}><span>Total</span><span>₹{grandTotal.toFixed(2)}</span></div>
             </div>
@@ -278,25 +338,19 @@ export default function SalesPOS() {
           <div style={{ textAlign: 'center', marginBottom: 16, paddingBottom: 12, borderBottom: '2px solid #2c3e50' }}>
             <h2 style={{ margin: 0, fontSize: 18 }}>{shopSettings.company_name || 'Mahadev Enterprises'}</h2>
             {shopSettings.company_address && <p style={{ fontSize: 11, color: '#666', margin: '4px 0' }}>{shopSettings.company_address}</p>}
-            {shopSettings.company_phone && <p style={{ fontSize: 11, color: '#666' }}>Ph: {shopSettings.company_phone}{shopSettings.company_phone2 ? ' / ' + shopSettings.company_phone2 : ''}</p>}
-            {gstEnabled && shopSettings.company_gstin && <p style={{ fontSize: 12, fontWeight: 700, margin: '4px 0' }}>GSTIN: {shopSettings.company_gstin}</p>}
+            {shopSettings.company_phone && <p style={{ fontSize: 11, color: '#666' }}>Ph: {shopSettings.company_phone}</p>}
+            {gstEnabled && shopSettings.company_gstin && <p style={{ fontSize: 12, fontWeight: 700 }}>GSTIN: {shopSettings.company_gstin}</p>}
             {!gstEnabled && <p style={{ fontSize: 11, color: '#e74c3c' }}>Non-GST Invoice</p>}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div>
-              <p style={{ fontSize: 12 }}><strong>Invoice:</strong> {lastInvoice.invoice_number}</p>
-              <p style={{ fontSize: 12 }}><strong>Date:</strong> {lastInvoice.sale_date}</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: 12 }}><strong>Customer:</strong> {lastInvoice.customer_name || 'Walk-in'}</p>
-              {lastInvoice.customer_phone && <p style={{ fontSize: 12 }}><strong>Phone:</strong> {lastInvoice.customer_phone}</p>}
-            </div>
+            <div><p style={{ fontSize: 12 }}><strong>Invoice:</strong> {lastInvoice.invoice_number}</p><p style={{ fontSize: 12 }}><strong>Date:</strong> {lastInvoice.sale_date}</p></div>
+            <div style={{ textAlign: 'right' }}><p style={{ fontSize: 12 }}><strong>Customer:</strong> {lastInvoice.customer_name || 'Walk-in'}</p>{lastInvoice.customer_phone && <p style={{ fontSize: 12 }}><strong>Phone:</strong> {lastInvoice.customer_phone}</p>}</div>
           </div>
           <table>
             <thead><tr><th>Item</th><th>HSN</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
             <tbody>
               {lastInvoice.items?.map((item, i) => (
-                <tr key={i}><td>{item.product_name}</td><td>{item.hsn_code || '-'}</td><td>{item.quantity}</td><td>₹{item.sell_price}</td><td>₹{(item.sell_price * item.quantity).toFixed(2)}</td></tr>
+                <tr key={i}><td>{item.product_name}</td><td>{item.hsn_code || '-'}</td><td>{item.quantity}</td><td>₹{(item.sell_price || item.unit_price || 0).toFixed(2)}</td><td>₹{((item.sell_price || item.unit_price || 0) * item.quantity).toFixed(2)}</td></tr>
               ))}
             </tbody>
           </table>
@@ -315,13 +369,18 @@ export default function SalesPOS() {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-            <button className="btn btn-success" onClick={() => { const r = lastInvoice; const w = window.open('', '_blank', 'width=400'); w.document.write(`<!DOCTYPE html><html><head><title>Receipt</title><style>body{font-family:monospace;font-size:11px;padding:10px;max-width:80mm}.c{text-align:center}.b{font-weight:bold}.l{border-top:1px dashed #000;margin:5px 0}.f{display:flex;justify-content:space-between}table{width:100%;font-size:10px;border-collapse:collapse}</style></head><body><div class="c"><h3>${shopSettings.company_name||'Shop'}</h3><p>${shopSettings.company_address||''}</p><p>Ph: ${shopSettings.company_phone||''}</p>${gstEnabled&&shopSettings.company_gstin?`<p class="b">GSTIN: ${shopSettings.company_gstin}</p>`:''}</div><div class="l"></div><p>Invoice: ${r.invoice_number} | ${r.sale_date}</p><p>Customer: ${r.customer_name||'Walk-in'}</p><div class="l"></div><table>${r.items.map(i=>`<tr><td>${i.product_name}</td><td align="center">${i.quantity}</td><td align="right">₹${i.sell_price}</td><td align="right">₹${(i.sell_price*i.quantity).toFixed(2)}</td></tr>`).join('')}</table><div class="l"></div><div class="f"><span>Subtotal</span><span>₹${r.subtotal.toFixed(2)}</span></div>${r.discount_total>0?`<div class="f"><span>Discount</span><span>-₹${r.discount_total.toFixed(2)}</span></div>`:''}${r.cgst_total>0?`<div class="f"><span>CGST</span><span>₹${r.cgst_total.toFixed(2)}</span></div><div class="f"><span>SGST</span><span>₹${r.sgst_total.toFixed(2)}</span></div>`:''}<div class="l"></div><div class="f b" style="font-size:14px"><span>TOTAL</span><span>₹${r.grand_total.toFixed(2)}</span></div><div class="l"></div><p class="c">Thank you!</p><script>window.print();setTimeout(()=>window.close(),500)</script></body></html>`); w.document.close(); }}>🖨️ Print</button>
-            <button className="btn btn-info" onClick={() => window.open(`${API}/gst/bill/${lastInvoice.id}`, '_blank')}>📄 GST Invoice PDF</button>
+            <button className="btn btn-success" onClick={() => {
+              const r = lastInvoice;
+              const w = window.open('', '_blank', 'width=400');
+              w.document.write(`<!DOCTYPE html><html><head><title>Receipt</title><style>body{font-family:monospace;font-size:11px;padding:10px;max-width:80mm}.c{text-align:center}.b{font-weight:bold}.l{border-top:1px dashed #000;margin:5px 0}.f{display:flex;justify-content:space-between}table{width:100%;font-size:10px;border-collapse:collapse}</style></head><body><div class="c"><h3>${shopSettings.company_name||'Shop'}</h3><p>${shopSettings.company_address||''}</p><p>Ph: ${shopSettings.company_phone||''}</p>${gstEnabled&&shopSettings.company_gstin?`<p class="b">GSTIN: ${shopSettings.company_gstin}</p>`:''}${!gstEnabled?'<p>Non-GST Invoice</p>':''}</div><div class="l"></div><p>Invoice: ${r.invoice_number} | ${r.sale_date}</p><p>Customer: ${r.customer_name||'Walk-in'}</p><div class="l"></div><table>${r.items.map(i=>{const p=i.sell_price||i.unit_price||0;return `<tr><td>${i.product_name}</td><td align="center">${i.quantity}</td><td align="right">₹${p.toFixed(2)}</td><td align="right">₹${(p*i.quantity).toFixed(2)}</td></tr>`}).join('')}</table><div class="l"></div><div class="f"><span>Subtotal</span><span>₹${r.subtotal.toFixed(2)}</span></div>${r.discount_total>0?`<div class="f"><span>Discount</span><span>-₹${r.discount_total.toFixed(2)}</span></div>`:''}${r.cgst_total>0?`<div class="f"><span>CGST</span><span>₹${r.cgst_total.toFixed(2)}</span></div><div class="f"><span>SGST</span><span>₹${r.sgst_total.toFixed(2)}</span></div>`:''}<div class="l"></div><div class="f b" style="font-size:14px"><span>TOTAL</span><span>₹${r.grand_total.toFixed(2)}</span></div><div class="l"></div><p class="c">Thank you!</p><script>window.print();setTimeout(()=>window.close(),500)</script></body></html>`);
+              w.document.close();
+            }}>🖨️ Print</button>
+            <button className="btn btn-info" onClick={() => window.open(`${API}/gst/bill/${lastInvoice.id}`, '_blank')}>📄 GST Invoice</button>
             {lastInvoice.customer_phone && (
               <button className="btn" style={{ background: '#25D366', color: '#fff' }} onClick={() => {
                 const phone = lastInvoice.customer_phone.replace(/[^0-9]/g, '');
-                const items = (lastInvoice.items || []).map(i => `${i.product_name} x${i.quantity} = ₹${(i.sell_price * i.quantity).toFixed(2)}`).join('%0A');
-                const msg = `*${shopSettings.company_name || 'Shop'}*%0A%0AInvoice: ${lastInvoice.invoice_number}%0ADate: ${lastInvoice.sale_date}%0A%0A*Items:*%0A${items}%0A%0ASubtotal: ₹${lastInvoice.subtotal.toFixed(2)}%0A${lastInvoice.cgst_total > 0 ? `CGST: ₹${lastInvoice.cgst_total.toFixed(2)}%0ASGST: ₹${lastInvoice.sgst_total.toFixed(2)}%0A` : ''}*Total: ₹${lastInvoice.grand_total.toFixed(2)}*%0A%0APayment: ${(lastInvoice.payment_mode || 'cash').toUpperCase()}${shopSettings.upi_id ? `%0AUPI: ${shopSettings.upi_id}` : ''}`;
+                const items = (lastInvoice.items || []).map(i => { const p = i.sell_price || i.unit_price || 0; return `${i.product_name} x${i.quantity} = ₹${(p * i.quantity).toFixed(2)}`; }).join('%0A');
+                const msg = `*${shopSettings.company_name || 'Shop'}*%0A%0AInvoice: ${lastInvoice.invoice_number}%0A%0A*Items:*%0A${items}%0A%0A*Total: ₹${lastInvoice.grand_total.toFixed(2)}*%0A${shopSettings.upi_id ? `%0AUPI: ${shopSettings.upi_id}` : ''}`;
                 window.open(`https://wa.me/91${phone}?text=${msg}`, '_blank');
               }}>📱 WhatsApp</button>
             )}
