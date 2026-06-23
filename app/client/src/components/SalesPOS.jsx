@@ -335,8 +335,8 @@ export default function SalesPOS() {
             <div style={{ borderTop: '2px solid #eee', paddingTop: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}><span>Subtotal</span><span>₹{cartSubtotal.toFixed(2)}</span></div>
               {cartDiscount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4, color: '#27ae60' }}><span>Discount</span><span>-₹{cartDiscount.toFixed(2)}</span></div>}
-              {gstEnabled && cgstTotal > 0 && <><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}><span>CGST @{cgstRate}%</span><span>₹{cgstTotal.toFixed(2)}</span></div><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}><span>SGST @{sgstRate}%</span><span>₹{sgstTotal.toFixed(2)}</span></div></>}
-              {gstEnabled && igstTotal > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}><span>IGST @{igstRate}%</span><span>₹{igstTotal.toFixed(2)}</span></div>}
+              {gstEnabled && cgstTotal > 0 && <><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}><span>CGST</span><span>₹{cgstTotal.toFixed(2)}</span></div><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}><span>SGST</span><span>₹{sgstTotal.toFixed(2)}</span></div></>}
+              {gstEnabled && igstTotal > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}><span>IGST</span><span>₹{igstTotal.toFixed(2)}</span></div>}
               {!gstEnabled && <div style={{ fontSize: 11, color: '#e74c3c', marginBottom: 4 }}>Non-GST Bill</div>}
               <hr />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 18, marginTop: 8 }}><span>Total</span><span>₹{grandTotal.toFixed(2)}</span></div>
