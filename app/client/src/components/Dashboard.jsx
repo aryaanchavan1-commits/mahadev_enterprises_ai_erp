@@ -13,13 +13,17 @@ export default function Dashboard() {
       fetch(`${API}/parties`).then(r => r.json()),
       fetch(`${API}/sales`).then(r => r.json()),
       fetch(`${API}/settings`).then(r => r.json()),
-    ]).then(([productsRes, catsRes, partiesRes, salesRes, settingsRes]) => {
+      fetch(`${API}/staff/summary/report`).then(r => r.json()).catch(() => ({ success: false, data: [] })),
+      fetch(`${API}/plates/summary/report`).then(r => r.json()).catch(() => ({ success: false, data: {} })),
+    ]).then(([productsRes, catsRes, partiesRes, salesRes, settingsRes, staffRes, platesRes]) => {
       const products = productsRes.data || [];
       const totalProducts = productsRes.total || products.length;
       const categories = catsRes.data || [];
       const parties = partiesRes.data || [];
       const sales = salesRes.data || [];
       const settings = settingsRes.data || settingsRes || {};
+      const staffData = staffRes.success ? staffRes.data : [];
+      const platesData = platesRes.success ? platesRes.data : {};
 
       // Fetch all products for analytics
       fetch(`${API}/products?limit=200`).then(r => r.json()).then(allProds => {
@@ -113,7 +117,7 @@ export default function Dashboard() {
           totalSales: sales.length, totalRevenue,
           last7, topItems,
           repeatingCustomers, catBreakdown,
-          settings
+          settings, staffData, platesData
         });
         setLoading(false);
       });
@@ -281,6 +285,69 @@ export default function Dashboard() {
             <div style={{display:'flex', justifyContent:'space-between', padding:'10px 12px', background:'#f0f9ff', borderRadius:8}}>
               <span>Avg Sale Value</span><strong>₹{d.totalSales > 0 ? (d.totalRevenue / d.totalSales).toLocaleString('en-IN', {maximumFractionDigits:0}) : 0}</strong>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* STAFF SALES & NUMBER PLATES */}
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:16}}>
+
+        {/* STAFF SALES */}
+        <div className="card">
+          <h3 style={{marginBottom:16}}>👥 Staff Sales Today</h3>
+          {d.staffData?.length === 0 ? (
+            <p style={{textAlign:'center', padding:20, color:'#999'}}>No staff added</p>
+          ) : (
+            <div style={{maxHeight:250, overflowY:'auto'}}>
+              {d.staffData?.map((s, i) => (
+                <div key={i} style={{display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid #f0f0f0'}}>
+                  <span style={{width:20, fontSize:12, color:'#999', textAlign:'center'}}>{i+1}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13, fontWeight:600}}>{s.name}</div>
+                    <div style={{fontSize:11, color:'#999'}}>{s.commission_rate}% commission</div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontSize:14, fontWeight:700, color:'#27ae60'}}>₹{s.today?.commission?.toLocaleString() || 0}</div>
+                    <div style={{fontSize:10, color:'#999'}}>{s.today?.sales || 0} sales · ₹{s.today?.amount?.toLocaleString() || 0}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{display:'flex', justifyContent:'space-between', padding:'10px 0', borderTop:'2px solid #eee', marginTop:8, fontWeight:700}}>
+                <span>Total Commission Today</span>
+                <span style={{color:'#27ae60'}}>₹{d.staffData?.reduce((sum, s) => sum + (s.today?.commission || 0), 0)?.toLocaleString() || 0}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* NUMBER PLATES */}
+        <div className="card">
+          <h3 style={{marginBottom:16}}>🔢 Number Plate Orders</h3>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:10, marginBottom:12}}>
+            <div style={{padding:12, background:'#f0fdf4', borderRadius:8, textAlign:'center'}}>
+              <div style={{fontSize:20, fontWeight:700, color:'#16a34a'}}>{d.platesData?.today || 0}</div>
+              <div style={{fontSize:10, color:'#999'}}>Today</div>
+            </div>
+            <div style={{padding:12, background:'#f0f9ff', borderRadius:8, textAlign:'center'}}>
+              <div style={{fontSize:20, fontWeight:700, color:'#2563eb'}}>{d.platesData?.month || 0}</div>
+              <div style={{fontSize:10, color:'#999'}}>This Month</div>
+            </div>
+            <div style={{padding:12, background:'#fefce8', borderRadius:8, textAlign:'center'}}>
+              <div style={{fontSize:20, fontWeight:700, color:'#d97706'}}>{d.platesData?.pending || 0}</div>
+              <div style={{fontSize:10, color:'#999'}}>Pending</div>
+            </div>
+            <div style={{padding:12, background:'#f5f3ff', borderRadius:8, textAlign:'center'}}>
+              <div style={{fontSize:20, fontWeight:700, color:'#7c3aed'}}>{d.platesData?.ready || 0}</div>
+              <div style={{fontSize:10, color:'#999'}}>Ready</div>
+            </div>
+          </div>
+          <div style={{display:'flex', justifyContent:'space-between', padding:'10px 0', borderTop:'1px solid #eee'}}>
+            <span style={{fontSize:12, color:'#666'}}>Total Revenue</span>
+            <strong>₹{d.platesData?.total_revenue?.toLocaleString() || 0}</strong>
+          </div>
+          <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}>
+            <span style={{fontSize:12, color:'#666'}}>Month Revenue</span>
+            <strong>₹{d.platesData?.month_revenue?.toLocaleString() || 0}</strong>
           </div>
         </div>
       </div>

@@ -42,18 +42,39 @@ export default function Staff() {
     if (e.key !== 'Enter') return;
     const code = saleForm.barcode.trim();
     if (!code) return;
+    await lookupBarcode(code);
+  };
+
+  const lookupBarcode = async (code) => {
     try {
       const r = await fetch(`${API}/products/barcode/${encodeURIComponent(code)}`);
       if (r.ok) {
         const d = await r.json();
         if (d.success && d.data) {
-          setSaleForm({ ...saleForm, product_name: d.data.name, unit_price: d.data.sell_price, barcode: d.data.barcode });
+          setSaleForm(prev => ({ ...prev, product_name: d.data.name, unit_price: d.data.sell_price, barcode: d.data.barcode }));
           showToast(`Found: ${d.data.name}`);
+          return;
+        }
+      }
+      // Fallback: search by name
+      const r2 = await fetch(`${API}/products?search=${encodeURIComponent(code)}&limit=5`);
+      if (r2.ok) {
+        const d2 = await r2.json();
+        if (d2.success && d2.data?.length > 0) {
+          const p = d2.data[0];
+          setSaleForm(prev => ({ ...prev, product_name: p.name, unit_price: p.sell_price, barcode: p.barcode || code }));
+          showToast(`Found: ${p.name}`);
           return;
         }
       }
       showToast('Product not found', 'error');
     } catch { showToast('Lookup failed', 'error'); }
+  };
+
+  const handleManualLookup = async () => {
+    const code = saleForm.barcode.trim();
+    if (!code) return showToast('Enter barcode or product name', 'error');
+    await lookupBarcode(code);
   };
 
   const handleAddSale = async () => {
@@ -179,10 +200,13 @@ export default function Staff() {
                 <div style={{ marginBottom: 16, padding: 16, background: '#f0f7ff', borderRadius: 8, border: '2px solid #3498db' }}>
                   <h4 style={{ marginBottom: 12 }}>Add Sale (Scan Barcode)</h4>
                   <div className="form-row">
-                    <div className="form-group">
-                      <label>Barcode</label>
-                      <input ref={barcodeRef} value={saleForm.barcode} onChange={e => setSaleForm({ ...saleForm, barcode: e.target.value })} onKeyDown={handleBarcodeScan} placeholder="Scan barcode here..." autoFocus />
+                  <div className="form-group">
+                    <label>Barcode / Product Name</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input ref={barcodeRef} value={saleForm.barcode} onChange={e => setSaleForm({ ...saleForm, barcode: e.target.value })} onKeyDown={handleBarcodeScan} placeholder="Scan or type barcode/product name..." style={{ flex: 1 }} autoFocus />
+                      <button className="btn btn-sm btn-primary" onClick={handleManualLookup}>🔍 Find</button>
                     </div>
+                  </div>
                     <div className="form-group"><label>Product Name</label><input value={saleForm.product_name} onChange={e => setSaleForm({ ...saleForm, product_name: e.target.value })} /></div>
                     <div className="form-group"><label>Qty</label><input type="number" value={saleForm.quantity} onChange={e => setSaleForm({ ...saleForm, quantity: Number(e.target.value) })} min="1" /></div>
                     <div className="form-group"><label>Price (₹)</label><input type="number" value={saleForm.unit_price} onChange={e => setSaleForm({ ...saleForm, unit_price: Number(e.target.value) })} /></div>
