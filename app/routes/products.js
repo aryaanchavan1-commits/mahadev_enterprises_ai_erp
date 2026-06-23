@@ -26,7 +26,7 @@ router.get('/', (req, res) => {
   try {
     const { search, category_id, subcategory_id, low_stock, page, limit } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = Math.min(200, Math.max(10, parseInt(limit) || 50));
+    const limitNum = Math.min(10000, Math.max(10, parseInt(limit) || 50));
     const offset = (pageNum - 1) * limitNum;
 
     let where = ' WHERE 1=1';
