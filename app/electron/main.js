@@ -90,6 +90,8 @@ function createExpressApp(dataDir) {
   server.use('/api/vyapar', require('../routes/vyapar'));
   server.use('/api/parties', require('../routes/parties'));
   server.use('/api/accounting', require('../routes/accounting'));
+  server.use('/api/staff', require('../routes/staff'));
+  server.use('/api/plates', require('../routes/plates'));
 
   const clientBuild = path.join(__dirname, '..', 'client', 'dist');
   if (fs.existsSync(clientBuild)) {

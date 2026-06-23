@@ -31,6 +31,8 @@ router.get('/bill/:saleId', (req, res) => {
     const s = getSettings();
     const gstEnabled = sale.cgst_total > 0 || sale.sgst_total > 0 || sale.igst_total > 0;
     const isIGST = sale.igst_total > 0;
+    const billingType = sale.billing_type || 'b2c';
+    const billingLabel = billingType === 'b2d' ? 'DISTRIBUTOR INVOICE' : billingType === 'b2b' ? 'TAX INVOICE' : 'RETAIL INVOICE';
 
     const doc = new PDFDocument({ size: 'A4', margin: 30 });
     const chunks = [];
@@ -68,7 +70,7 @@ router.get('/bill/:saleId', (req, res) => {
     y += 30;
 
     // Invoice title
-    doc.fontSize(14).font('Helvetica-Bold').fill('#1a1a2e').text(gstEnabled ? 'TAX INVOICE' : 'INVOICE', L, y, { width: W, align: 'center' });
+    doc.fontSize(14).font('Helvetica-Bold').fill('#1a1a2e').text(billingLabel, L, y, { width: W, align: 'center' });
     doc.fill('#000000');
     y += 25;
 

@@ -70,8 +70,8 @@ router.post('/', (req, res) => {
       return { ...item, product_name: p?.name || '', hsn_code: p?.hsn_code || '' };
     });
 
-    run(`INSERT INTO sales (invoice_number, sale_date, customer_name, customer_phone, customer_gstin, customer_address, items, subtotal, discount_total, cgst_total, sgst_total, igst_total, grand_total, payment_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [invoiceNum, saleDate, data.customer_name || 'Walk-in Customer', data.customer_phone || '', data.customer_gstin || '', data.customer_address || '', JSON.stringify(enrichedItems), subtotal, discountTotal, cgstTotal, sgstTotal, igstTotal, grandTotal, data.payment_mode || 'cash']);
+    run(`INSERT INTO sales (invoice_number, sale_date, customer_name, customer_phone, customer_gstin, customer_address, items, subtotal, discount_total, cgst_total, sgst_total, igst_total, grand_total, payment_mode, billing_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [invoiceNum, saleDate, data.customer_name || 'Walk-in Customer', data.customer_phone || '', data.customer_gstin || '', data.customer_address || '', JSON.stringify(enrichedItems), subtotal, discountTotal, cgstTotal, sgstTotal, igstTotal, grandTotal, data.payment_mode || 'cash', data.billing_type || 'b2c']);
 
     for (const item of items) {
       run('UPDATE products SET quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [item.quantity, item.product_id]);
@@ -97,6 +97,8 @@ router.get('/:id/receipt', (req, res) => {
 
     const gstEnabled = sale.cgst_total > 0 || sale.sgst_total > 0 || sale.igst_total > 0;
     const isInvoice = gstEnabled && s.company_gstin;
+    const billingType = sale.billing_type || 'b2c';
+    const billingLabel = billingType === 'b2d' ? 'DISTRIBUTOR BILL' : billingType === 'b2b' ? 'BUSINESS BILL' : 'RETAIL BILL';
 
     // A4 for GST invoice, thermal for receipt
     const pageSize = isInvoice ? 'A4' : [226, 800];

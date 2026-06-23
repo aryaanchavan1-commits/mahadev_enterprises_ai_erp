@@ -15,7 +15,7 @@ export default function SalesPOS() {
   const [lastInvoice, setLastInvoice] = useState(null);
   const [shopSettings, setShopSettings] = useState({});
   const [gstEnabled, setGstEnabled] = useState(true);
-  const [billingMode, setBillingMode] = useState('b2c');
+  const [billingType, setBillingType] = useState('b2c');
   const [editPrice, setEditPrice] = useState(null);
   const [editPriceValue, setEditPriceValue] = useState('');
   const printRef = useRef(null);
@@ -83,7 +83,9 @@ export default function SalesPOS() {
 
   const addToCart = (product) => {
     if (product.quantity <= 0) { showToast(`${product.name} is out of stock!`, 'error'); return; }
-    const basePrice = billingMode === 'b2b' ? (product.wholesale_price || product.sell_price) : product.sell_price;
+    let basePrice = product.sell_price;
+    if (billingType === 'b2b') basePrice = product.wholesale_price || product.sell_price;
+    if (billingType === 'b2d') basePrice = product.wholesale_price ? product.wholesale_price * 0.9 : product.sell_price * 0.85;
     const existing = cart.find(i => i.product_id === product.id);
     if (existing) {
       if (existing.quantity >= product.quantity) { showToast(`Only ${product.quantity} left!`, 'error'); return; }
@@ -143,7 +145,7 @@ export default function SalesPOS() {
           customer_gstin: customer.gstin,
           payment_mode: paymentMode,
           gst_enabled: gstEnabled,
-          billing_mode: billingMode
+          billing_type: billingType
         })
       });
       const d = await r.json();
@@ -259,9 +261,10 @@ export default function SalesPOS() {
                 <input type="checkbox" checked={gstEnabled} onChange={e => setGstEnabled(e.target.checked)} style={{ width: 16, height: 16 }} />
                 GST
               </label>
-              <select value={billingMode} onChange={e => setBillingMode(e.target.value)} style={{ width: 80, fontSize: 11, padding: '4px 6px' }}>
-                <option value="b2c">B2C</option>
-                <option value="b2b">B2B</option>
+              <select value={billingType} onChange={e => setBillingType(e.target.value)} style={{ width: 100, fontSize: 11, padding: '4px 6px' }}>
+                <option value="b2c">👤 B2C</option>
+                <option value="b2b">🏢 B2B</option>
+                <option value="b2d">🏭 B2D</option>
               </select>
             </div>
             </div>

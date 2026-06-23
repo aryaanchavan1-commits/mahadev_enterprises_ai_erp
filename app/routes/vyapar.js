@@ -144,20 +144,21 @@ async function importFromVyp(vypDb, opts) {
     const catMap = {};
     try {
       const cats = vypQuery(vypDb, "SELECT * FROM kb_item_categories ORDER BY item_category_id");
-      const existing = new Set(all("SELECT LOWER(name) as n FROM categories").map(r => r.n));
+      const existingCats = {};
+      all("SELECT id, LOWER(name) as n FROM categories").forEach(r => { existingCats[r.n] = r.id; });
       for (const c of cats) {
         const name = safeStr(c.item_category_name);
         if (!name) continue;
         const key = name.toLowerCase();
-        if (existing.has(key)) {
-          const row = get("SELECT id FROM categories WHERE LOWER(name) = ?", [key]);
-          if (row) catMap[safeInt(c.item_category_id)] = row.id;
-          continue;
+        if (existingCats[key]) {
+          catMap[safeInt(c.item_category_id)] = existingCats[key];
+        } else {
+          run("INSERT INTO categories (name) VALUES (?)", [name]);
+          const newId = lastInsertRowid();
+          catMap[safeInt(c.item_category_id)] = newId;
+          existingCats[key] = newId;
+          result.categories++;
         }
-        run("INSERT INTO categories (name) VALUES (?)", [name]);
-        catMap[safeInt(c.item_category_id)] = lastInsertRowid();
-        existing.add(key);
-        result.categories++;
       }
     } catch (e) { result.errors.push('Categories: ' + e.message); }
 
@@ -183,7 +184,11 @@ async function importFromVyp(vypDb, opts) {
     const partyMap = {};
     try {
       const names = vypQuery(vypDb, "SELECT * FROM kb_names");
-      const existingMobiles = new Set(all("SELECT phone FROM parties WHERE phone IS NOT NULL AND phone != ''").map(r => r.phone));
+      const existingByPhone = {};
+      all("SELECT id, phone FROM parties WHERE phone IS NOT NULL AND phone != ''").forEach(r => { existingByPhone[r.phone] = r.id; });
+      const existingByName = {};
+      all("SELECT id, LOWER(name) as n, party_type FROM parties").forEach(r => { existingByName[`${r.n}:${r.party_type}`] = r.id; });
+
       for (const n of names) {
         const name = safeStr(n.full_name);
         if (!name) continue;
@@ -191,28 +196,32 @@ async function importFromVyp(vypDb, opts) {
         const isSupplier = (ntype === 2 || ntype === 3);
         const partyType = isSupplier ? 'supplier' : 'customer';
         const phone = safeStr(n.phone_number) || '';
-        if (phone && existingMobiles.has(phone)) {
-          const row = get("SELECT id FROM parties WHERE phone = ?", [phone]);
-          if (row) { partyMap[safeInt(n.name_id)] = row.id; continue; }
+        const email = safeStr(n.email);
+        const gstin = safeStr(n.name_gstin_number);
+        const address = safeStr(n.address);
+        const state = safeStr(n.name_state);
+        const pincode = safeStr(n.pincode);
+
+        // Check if party exists by phone or name
+        const existingId = (phone && existingByPhone[phone]) || existingByName[`${name.toLowerCase()}:${partyType}`];
+
+        if (existingId) {
+          // UPDATE existing party
+          run(`UPDATE parties SET email=?, gstin=?, address=?, state=?, pincode=? WHERE id=?`,
+            [email, gstin, address, state, pincode, existingId]);
+          partyMap[safeInt(n.name_id)] = existingId;
+        } else {
+          // INSERT new party
+          run(`INSERT INTO parties (name, party_type, phone, email, gstin, address, city, state, pincode)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [name, partyType, phone, email, gstin, address, '', state, pincode]
+          );
+          const pid = lastInsertRowid();
+          partyMap[safeInt(n.name_id)] = pid;
+          if (phone) existingByPhone[phone] = pid;
+          existingByName[`${name.toLowerCase()}:${partyType}`] = pid;
+          if (isSupplier) result.suppliers++; else result.customers++;
         }
-        const existingByName = get("SELECT id FROM parties WHERE LOWER(name) = ? AND party_type = ?", [name.toLowerCase(), partyType]);
-        if (existingByName) { partyMap[safeInt(n.name_id)] = existingByName.id; continue; }
-        run(`INSERT INTO parties (name, party_type, phone, email, gstin, address, city, state, pincode)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            name, partyType, phone,
-            safeStr(n.email),
-            safeStr(n.name_gstin_number),
-            safeStr(n.address),
-            '',
-            safeStr(n.name_state),
-            safeStr(n.pincode),
-          ]
-        );
-        const pid = lastInsertRowid();
-        partyMap[safeInt(n.name_id)] = pid;
-        if (phone) existingMobiles.add(phone);
-        if (isSupplier) result.suppliers++; else result.customers++;
       }
     } catch (e) { result.errors.push('Parties: ' + e.message); }
 
@@ -221,20 +230,17 @@ async function importFromVyp(vypDb, opts) {
     const productName = {};
     try {
       const items = vypQuery(vypDb, "SELECT * FROM kb_items WHERE item_is_active = 1");
-      const existingNames = new Set(all("SELECT LOWER(name) as n FROM products").map(r => r.n));
-      const existingBarcodes = new Set(all("SELECT barcode FROM products WHERE barcode IS NOT NULL AND barcode != ''").map(r => r.barcode));
+      const existingByName = {};
+      all("SELECT id, LOWER(name) as n FROM products").forEach(r => { existingByName[r.n] = r.id; });
+      const existingByBarcode = {};
+      all("SELECT id, barcode FROM products WHERE barcode IS NOT NULL AND barcode != ''").forEach(r => { existingByBarcode[r.barcode] = r.id; });
+
       for (const it of items) {
         const name = safeStr(it.item_name);
         if (!name) continue;
         const iid = safeInt(it.item_id);
         productName[iid] = name;
-        if (existingNames.has(name.toLowerCase())) {
-          const row = get("SELECT id FROM products WHERE LOWER(name) = ?", [name.toLowerCase()]);
-          if (row) { productMap[iid] = row.id; continue; }
-        }
-        let barcode = safeStr(it.item_code);
-        if (barcode && existingBarcodes.has(barcode)) barcode = '';
-        if (!barcode) barcode = `ME${Date.now()}${Math.floor(Math.random() * 999)}`;
+
         let sp = safeNum(it.item_sale_unit_price);
         const mrp = safeNum(it.item_mrp), wp = safeNum(it.item_wholesale_price), pp = safeNum(it.item_purchase_unit_price);
         if (sp <= 0) sp = mrp || wp || pp;
@@ -242,18 +248,32 @@ async function importFromVyp(vypDb, opts) {
         const gst = taxMap[safeInt(it.item_tax_id)] || 18;
         const cat = itemCategory[iid] || null;
         const qty = safeInt(it.item_stock_quantity);
-        const ms = Math.max(1, safeInt(it.item_min_stock_quantity, 5));
         const hsn = safeStr(it.item_hsn_sac_code);
         const desc = safeStr(it.item_description);
-        run(`INSERT INTO products (name, quantity, description, hsn_code, sell_price, wholesale_price, inward_price,
-             serial_number, barcode, category_id, gst_rate, discount_percent)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [name, qty, desc, hsn, sp, wholesale, pp, `ME-SN-${iid}-${Date.now()}`, barcode, cat, gst, 0]
-        );
-        productMap[iid] = lastInsertRowid();
-        existingNames.add(name.toLowerCase());
-        if (barcode) existingBarcodes.add(barcode);
-        result.products++;
+        const barcode = safeStr(it.item_code) || '';
+
+        // Check if product exists by name or barcode
+        const existingId = existingByName[name.toLowerCase()] || (barcode ? existingByBarcode[barcode] : null);
+
+        if (existingId) {
+          // UPDATE existing product (price, stock, HSN, category)
+          run(`UPDATE products SET sell_price=?, wholesale_price=?, inward_price=?, quantity=?, hsn_code=?, category_id=?, gst_rate=?, description=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            [sp, wholesale, pp, qty, hsn, cat, gst, desc, existingId]);
+          productMap[iid] = existingId;
+          result.products++; // Count as updated
+        } else {
+          // INSERT new product
+          const newBarcode = barcode || `ME${Date.now()}${Math.floor(Math.random() * 999)}`;
+          run(`INSERT INTO products (name, quantity, description, hsn_code, sell_price, wholesale_price, inward_price,
+               serial_number, barcode, category_id, gst_rate, discount_percent)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [name, qty, desc, hsn, sp, wholesale, pp, `ME-SN-${iid}-${Date.now()}`, newBarcode, cat, gst, 0]
+          );
+          productMap[iid] = lastInsertRowid();
+          existingByName[name.toLowerCase()] = productMap[iid];
+          if (newBarcode) existingByBarcode[newBarcode] = productMap[iid];
+          result.products++;
+        }
       }
     } catch (e) { result.errors.push('Products: ' + e.message); }
 
