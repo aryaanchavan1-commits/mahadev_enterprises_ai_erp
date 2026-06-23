@@ -245,6 +245,66 @@ async function getDb() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_credit_notes_sale ON credit_notes(sale_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_debit_notes_purchase ON debit_notes(purchase_id)`);
 
+  // Migration: Add missing columns if they don't exist
+  try {
+    const salesCols = db.exec("PRAGMA table_info(sales)");
+    const colNames = salesCols.length > 0 ? salesCols[0].values.map(r => r[1]) : [];
+    if (!colNames.includes('billing_type')) {
+      db.run("ALTER TABLE sales ADD COLUMN billing_type TEXT DEFAULT 'b2c'");
+    }
+  } catch (e) {}
+
+  try {
+    const productsCols = db.exec("PRAGMA table_info(products)");
+    const pColNames = productsCols.length > 0 ? productsCols[0].values.map(r => r[1]) : [];
+    if (!pColNames.includes('wholesale_price')) {
+      db.run("ALTER TABLE products ADD COLUMN wholesale_price REAL DEFAULT 0");
+    }
+    if (!pColNames.includes('gst_rate')) {
+      db.run("ALTER TABLE products ADD COLUMN gst_rate REAL DEFAULT 18");
+    }
+  } catch (e) {}
+
+  // Ensure staff tables exist
+  try {
+    db.run(`CREATE TABLE IF NOT EXISTS staff (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT DEFAULT '',
+      commission_rate REAL DEFAULT 0,
+      daily_target REAL DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS staff_sales (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      staff_id INTEGER NOT NULL,
+      product_id INTEGER,
+      product_name TEXT NOT NULL,
+      barcode TEXT DEFAULT '',
+      quantity INTEGER DEFAULT 1,
+      unit_price REAL DEFAULT 0,
+      commission_amount REAL DEFAULT 0,
+      sale_date TEXT NOT NULL,
+      notes TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (staff_id) REFERENCES staff(id)
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS number_plates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_name TEXT NOT NULL,
+      phone TEXT DEFAULT '',
+      plate_number TEXT NOT NULL,
+      plate_type TEXT DEFAULT 'standard',
+      order_date TEXT NOT NULL,
+      delivery_date TEXT DEFAULT '',
+      status TEXT DEFAULT 'pending',
+      amount REAL DEFAULT 0,
+      notes TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+  } catch (e) {}
+
   saveDb();
 
   // Seed default data

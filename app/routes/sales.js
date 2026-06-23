@@ -45,15 +45,16 @@ router.post('/', (req, res) => {
       const lineTotal = price * item.quantity;
       const lineDiscount = lineTotal * (item.discount_percent || 0) / 100;
       const afterDiscount = lineTotal - lineDiscount;
+      const itemGstRate = item.gst_percentage || 0;
 
       let cgst = 0, sgst = 0, igst = 0;
-      if (gstEnabled) {
+      if (gstEnabled && itemGstRate > 0) {
         const custState = (data.customer_gstin || '').substring(0, 2);
         const compState = companyGstin.substring(0, 2);
         const isInterState = data.customer_gstin && custState !== compState;
-        cgst = isInterState ? 0 : afterDiscount * (cgstRate / 100);
-        sgst = isInterState ? 0 : afterDiscount * (sgstRate / 100);
-        igst = isInterState ? afterDiscount * (igstRate / 100) : 0;
+        cgst = isInterState ? 0 : afterDiscount * (itemGstRate / 2 / 100);
+        sgst = isInterState ? 0 : afterDiscount * (itemGstRate / 2 / 100);
+        igst = isInterState ? afterDiscount * (itemGstRate / 100) : 0;
       }
 
       subtotal += lineTotal;

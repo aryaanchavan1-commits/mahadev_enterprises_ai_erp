@@ -58,6 +58,10 @@ export default function SalesPOS() {
     if (e.key !== 'Enter') return;
     const code = barcodeInput.trim();
     if (!code) return;
+    await lookupBarcode(code);
+  }, [barcodeInput, cart]);
+
+  const lookupBarcode = async (code) => {
     try {
       const bcRes = await fetch(`${API}/products/barcode/${encodeURIComponent(code)}`);
       if (bcRes.ok) {
@@ -72,14 +76,15 @@ export default function SalesPOS() {
       const res = await fetch(`${API}/products?search=${encodeURIComponent(code)}&limit=5`);
       const data = await res.json();
       if (data.success && data.data.length > 0) {
-        addToCart(data.data[0]);
-        showToast(`Added: ${data.data[0].name}`);
+        const exact = data.data.find(p => p.barcode === code) || data.data[0];
+        addToCart(exact);
+        showToast(`Added: ${exact.name}`);
       } else {
         showToast(`"${code}" not found`, 'error');
       }
     } catch { showToast('Lookup failed', 'error'); }
     setBarcodeInput('');
-  }, [barcodeInput, cart]);
+  };
 
   const addToCart = (product) => {
     if (product.quantity <= 0) { showToast(`${product.name} is out of stock!`, 'error'); return; }
@@ -112,18 +117,22 @@ export default function SalesPOS() {
   const updateQty = (id, qty) => setCart(cart.map(i => i.product_id === id ? { ...i, quantity: Math.max(1, Math.min(qty, i.max_quantity)) } : i));
   const updateCustomPrice = (id, price) => setCart(cart.map(i => i.product_id === id ? { ...i, custom_price: Math.max(0, price) } : i));
   const updateItemDiscount = (id, disc) => setCart(cart.map(i => i.product_id === id ? { ...i, discount_percent: Math.min(100, Math.max(0, disc)) } : i));
+  const updateItemGst = (id, gst) => setCart(cart.map(i => i.product_id === id ? { ...i, gst_percentage: Math.min(100, Math.max(0, gst)) } : i));
 
   const cartSubtotal = cart.reduce((s, i) => s + ((i.custom_price || i.sell_price) * i.quantity), 0);
   const cartDiscount = cart.reduce((s, i) => s + (((i.custom_price || i.sell_price) * i.quantity) * (i.discount_percent || 0) / 100), 0);
   const afterDiscount = cartSubtotal - cartDiscount;
-  const gstRate = parseFloat(shopSettings.gst_rate) || 18;
-  const cgstRate = parseFloat(shopSettings.cgst_rate) || gstRate / 2;
-  const sgstRate = parseFloat(shopSettings.sgst_rate) || gstRate / 2;
-  const igstRate = parseFloat(shopSettings.igst_rate) || gstRate;
+  const cartGstAmount = gstEnabled ? cart.reduce((s, i) => {
+    const price = i.custom_price || i.sell_price;
+    const lineTotal = price * i.quantity;
+    const discAmt = lineTotal * (i.discount_percent || 0) / 100;
+    const taxable = lineTotal - discAmt;
+    return s + (taxable * (i.gst_percentage || 0) / 100);
+  }, 0) : 0;
   const isInterState = customer.gstin && customer.gstin.substring(0, 2) !== (shopSettings.company_gstin || '27').substring(0, 2);
-  const cgstTotal = gstEnabled ? (isInterState ? 0 : afterDiscount * (cgstRate / 100)) : 0;
-  const sgstTotal = gstEnabled ? (isInterState ? 0 : afterDiscount * (sgstRate / 100)) : 0;
-  const igstTotal = gstEnabled ? (isInterState ? afterDiscount * (igstRate / 100) : 0) : 0;
+  const cgstTotal = gstEnabled ? (isInterState ? 0 : cartGstAmount / 2) : 0;
+  const sgstTotal = gstEnabled ? (isInterState ? 0 : cartGstAmount / 2) : 0;
+  const igstTotal = gstEnabled ? (isInterState ? cartGstAmount : 0) : 0;
   const grandTotal = afterDiscount + cgstTotal + sgstTotal + igstTotal;
 
   const handleCheckout = async () => {
@@ -138,7 +147,7 @@ export default function SalesPOS() {
             hsn_code: i.hsn_code,
             quantity: i.quantity,
             sell_price: i.custom_price || i.sell_price,
-            gst_percentage: i.gst_percentage
+            gst_percentage: i.gst_percentage || 0
           })),
           customer_name: customer.name || 'Walk-in Customer',
           customer_phone: customer.phone,
@@ -187,7 +196,8 @@ export default function SalesPOS() {
       <div className="card" style={{ marginBottom: 16, padding: 12, background: '#f0f7ff', border: '2px solid #3498db' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: 24 }}>📷</span>
-          <input ref={barcodeRef} placeholder="SCAN BARCODE HERE — Press F2 to focus" value={barcodeInput} onChange={e => setBarcodeInput(e.target.value)} onKeyDown={handleBarcodeScan} autoFocus style={{ flex: 1, fontSize: 16, padding: '12px 16px', border: '2px dashed #3498db', background: '#fff', letterSpacing: 1 }} />
+          <input ref={barcodeRef} placeholder="SCAN BARCODE or TYPE BARCODE then press Enter" value={barcodeInput} onChange={e => setBarcodeInput(e.target.value)} onKeyDown={handleBarcodeScan} style={{ flex: 1, fontSize: 16, padding: '12px 16px', border: '2px dashed #3498db', background: '#fff', letterSpacing: 1 }} />
+          <button className="btn btn-primary" onClick={async () => { if (barcodeInput.trim()) { await lookupBarcode(barcodeInput.trim()); } }}>🔍 Find</button>
           <button className="btn btn-primary" onClick={() => barcodeRef.current?.focus()}>📷 F2</button>
         </div>
       </div>
@@ -310,6 +320,10 @@ export default function SalesPOS() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ color: '#666' }}>Disc%:</span>
                         <input type="number" value={item.discount_percent || 0} onChange={e => updateItemDiscount(item.product_id, Number(e.target.value))} style={{ width: 45, padding: '2px 4px', fontSize: 11 }} min="0" max="100" />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666' }}>GST%:</span>
+                        <input type="number" value={item.gst_percentage} onChange={e => updateItemGst(item.product_id, Number(e.target.value))} style={{ width: 45, padding: '2px 4px', fontSize: 11 }} min="0" max="100" />
                       </div>
                     </div>
                   </div>
