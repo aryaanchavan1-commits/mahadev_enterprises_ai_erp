@@ -4,10 +4,9 @@ const { get, all, run, lastInsertRowid } = require('../db');
 
 router.get('/', (req, res) => {
   try {
-    const categories = all('SELECT * FROM categories ORDER BY id');
+    const categories = all('SELECT * FROM categories ORDER BY name ASC');
     const result = categories.map(cat => ({
       ...cat,
-      subcategories: all('SELECT * FROM subcategories WHERE category_id = ? ORDER BY id', [cat.id]),
       product_count: get('SELECT COUNT(*) as c FROM products WHERE category_id = ?', [cat.id]).c
     }));
     res.json({ success: true, data: result });

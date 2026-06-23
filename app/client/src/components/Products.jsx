@@ -37,13 +37,13 @@ export default function Products() {
     if (categoryFilter) params.set('category_id', categoryFilter);
     fetch(`${API}/products?${params}`)
       .then(r => r.json())
-      .then(d => { if (d.success) { setProducts(d.data); setTotal(d.total || d.data.length); } })
+      .then(d => { if (d.success) { setProducts((d.data || []).sort((a, b) => a.name.localeCompare(b.name))); setTotal(d.total || d.data.length); } })
       .catch(() => showToast('Failed to load', 'error'))
       .finally(() => setLoading(false));
   };
 
   const loadCategories = () => {
-    fetch(`${API}/categories`).then(r => r.json()).then(d => { if (d.success) setCategories(d.data); });
+    fetch(`${API}/categories`).then(r => r.json()).then(d => { if (d.success) setCategories(d.data.sort((a, b) => a.name.localeCompare(b.name))); });
   };
 
   useEffect(() => { loadCategories(); }, []);

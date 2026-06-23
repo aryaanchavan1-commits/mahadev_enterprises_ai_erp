@@ -16,7 +16,7 @@ function generateBarcodeImage(code) {
 router.get('/barcode/:code', (req, res) => {
   try {
     const code = req.params.code;
-    const product = get(`SELECT p.*, cat.name as category_name, sc.name as subcategory_name FROM products p LEFT JOIN categories cat ON p.category_id = cat.id LEFT JOIN subcategories sc ON p.subcategory_id = sc.id WHERE p.barcode = ?`, [code]);
+    const product = get(`SELECT p.*, cat.name as category_name FROM products p LEFT JOIN categories cat ON p.category_id = cat.id WHERE p.barcode = ?`, [code]);
     if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
     res.json({ success: true, data: product });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
@@ -36,10 +36,10 @@ router.get('/', (req, res) => {
     if (subcategory_id) { where += ` AND p.subcategory_id = ?`; params.push(subcategory_id); }
     if (low_stock === 'true') { where += ` AND p.quantity <= 5`; }
 
-    const baseSql = `FROM products p LEFT JOIN categories cat ON p.category_id = cat.id LEFT JOIN subcategories sc ON p.subcategory_id = sc.id${where}`;
+    const baseSql = `FROM products p LEFT JOIN categories cat ON p.category_id = cat.id${where}`;
     const totalRow = get(`SELECT COUNT(*) as cnt ${baseSql}`, params);
     const total = totalRow ? totalRow.cnt : 0;
-    const data = all(`SELECT p.*, cat.name as category_name, sc.name as subcategory_name ${baseSql} ORDER BY p.updated_at DESC LIMIT ? OFFSET ?`, [...params, limitNum, offset]);
+    const data = all(`SELECT p.*, cat.name as category_name ${baseSql} ORDER BY p.name ASC LIMIT ? OFFSET ?`, [...params, limitNum, offset]);
 
     res.json({ success: true, data, total, page: pageNum, limit: limitNum });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
@@ -47,7 +47,7 @@ router.get('/', (req, res) => {
 
 router.get('/:id', (req, res) => {
   try {
-    const product = get(`SELECT p.*, cat.name as category_name, sc.name as subcategory_name FROM products p LEFT JOIN categories cat ON p.category_id = cat.id LEFT JOIN subcategories sc ON p.subcategory_id = sc.id WHERE p.id = ?`, [req.params.id]);
+    const product = get(`SELECT p.*, cat.name as category_name FROM products p LEFT JOIN categories cat ON p.category_id = cat.id WHERE p.id = ?`, [req.params.id]);
     if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
     res.json({ success: true, data: product });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }

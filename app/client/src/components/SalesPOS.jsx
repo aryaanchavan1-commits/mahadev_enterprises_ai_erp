@@ -34,7 +34,7 @@ export default function SalesPOS() {
   };
 
   const fetchCategories = () => {
-    fetch(`${API}/categories`).then(r => r.json()).then(d => { if (d.success) setCategories(d.data); });
+    fetch(`${API}/categories`).then(r => r.json()).then(d => { if (d.success) setCategories(d.data.sort((a, b) => a.name.localeCompare(b.name))); });
   };
 
   useEffect(() => {
@@ -129,14 +129,14 @@ export default function SalesPOS() {
     } catch { showToast('Checkout failed', 'error'); }
   };
 
-  // Filter products by selected category
+  // Filter products by selected category, sorted A-Z
   const categoryProducts = selectedCat
-    ? products.filter(p => p.category_id === selectedCat)
-    : products;
+    ? products.filter(p => p.category_id === selectedCat).sort((a, b) => a.name.localeCompare(b.name))
+    : products.slice().sort((a, b) => a.name.localeCompare(b.name));
 
-  // Search filter
+  // Search filter, sorted A-Z
   const filteredProducts = search.length >= 2
-    ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.hsn_code?.includes(search))
+    ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.hsn_code?.includes(search)).sort((a, b) => a.name.localeCompare(b.name))
     : categoryProducts;
 
   // Category with product counts
@@ -197,7 +197,7 @@ export default function SalesPOS() {
             </div>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
-            {filteredProducts.slice(0, 200).map(p => (
+            {filteredProducts.map(p => (
               <div
                 key={p.id}
                 onClick={() => addToCart(p)}
