@@ -21,7 +21,19 @@ try {
 
 let mainWindow = null;
 let tray = null;
-const PORT = 3000;
+let PORT = 3000;
+
+function checkPort(port) {
+  const net = require('net');
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => resolve(false));
+    server.listen(port, '127.0.0.1', () => {
+      server.close();
+      resolve(true);
+    });
+  });
+}
 
 function emergLog(msg) {
   try {
@@ -231,11 +243,26 @@ if (!gotLock) {
     process.env.DATA_DIR = dataDir;
     emergLog('Data dir: ' + dataDir);
 
+    // Find available port
+    let available = await checkPort(PORT);
+    let tries = 0;
+    while (!available && tries < 20) {
+      PORT++;
+      tries++;
+      available = await checkPort(PORT);
+    }
+    if (!available) {
+      dialog.showErrorBox('Port Error', 'No available port found. Close other apps and try again.');
+      app.quit();
+      return;
+    }
+    emergLog('Using port: ' + PORT);
+
     try {
       await startServer(dataDir);
     } catch (err) {
       emergLog('STARTUP ERROR: ' + err.message + '\n' + (err.stack || ''));
-      dialog.showErrorBox('Startup Error', `Failed to start server:\n\n${err.message}\n\nPort ${PORT} may be in use. Close other apps using port ${PORT} and try again.`);
+      dialog.showErrorBox('Startup Error', `Failed to start server:\n\n${err.message}\n\nPlease close other apps and try again.`);
       app.quit();
       return;
     }
