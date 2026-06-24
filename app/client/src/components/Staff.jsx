@@ -208,8 +208,8 @@ export default function Staff() {
                     </div>
                   </div>
                     <div className="form-group"><label>Product Name</label><input value={saleForm.product_name} onChange={e => setSaleForm({ ...saleForm, product_name: e.target.value })} /></div>
-                    <div className="form-group"><label>Qty</label><input type="number" value={saleForm.quantity} onChange={e => setSaleForm({ ...saleForm, quantity: Number(e.target.value) })} min="1" /></div>
-                    <div className="form-group"><label>Price (₹)</label><input type="number" value={saleForm.unit_price} onChange={e => setSaleForm({ ...saleForm, unit_price: Number(e.target.value) })} /></div>
+                    <div className="form-group"><label>Qty</label><input value={saleForm.quantity} onChange={e => setSaleForm({ ...saleForm, quantity: Number(e.target.value) })} min="1" style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }} /></div>
+                    <div className="form-group"><label>Price (₹)</label><input value={saleForm.unit_price} onChange={e => setSaleForm({ ...saleForm, unit_price: Number(e.target.value) })} placeholder="Enter price" style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }} /></div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button className="btn btn-success" onClick={handleAddSale}>Add Sale</button>

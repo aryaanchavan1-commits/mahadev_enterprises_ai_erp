@@ -292,7 +292,19 @@ export default function Settings() {
           <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
             <button className="btn btn-sm btn-outline" onClick={() => {
               showToast('Backup: Copy app/data/mahadev_erp.db to a safe location');
-            }}>📋 Backup Instructions</button>
+            }}>📋 Backup Info</button>
+            <button className="btn btn-sm btn-success" onClick={async () => {
+              try {
+                const infoRes = await fetch(`${API}/settings/backup/info`);
+                const info = await infoRes.json();
+                if (info.success) {
+                  const dbSize = info.data.dbSizeFormatted;
+                  const dbPath = info.data.dbPath;
+                  showToast(`Database: ${dbSize}. Open this folder to backup: ${info.data.dataDir}`);
+                  setTimeout(() => { if (window.electronAPI) { window.electronAPI.showBackupDialog?.(); } }, 500);
+                }
+              } catch { showToast('Failed to get backup info', 'error'); }
+            }}>💾 Backup Now</button>
             <button className="btn btn-sm btn-outline" onClick={async () => {
               await fetch(`${API}/ai/history`, { method: 'DELETE' });
               showToast('AI chat history cleared');

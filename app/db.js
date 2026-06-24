@@ -160,8 +160,11 @@ async function getDb() {
       customer_name TEXT NOT NULL,
       phone TEXT DEFAULT '',
       plate_number TEXT NOT NULL,
+      hsn_code TEXT DEFAULT '',
       plate_type TEXT DEFAULT 'standard',
       order_date TEXT NOT NULL,
+      fitting_date TEXT DEFAULT '',
+      challan_date TEXT DEFAULT '',
       delivery_date TEXT DEFAULT '',
       status TEXT DEFAULT 'pending',
       amount REAL DEFAULT 0,
@@ -304,6 +307,15 @@ async function getDb() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
   } catch (e) {}
+
+  // Migration: Add missing number_plate columns
+  try {
+    const plateCols = db.exec("PRAGMA table_info(number_plates)");
+    const plateColNames = plateCols.length > 0 ? plateCols[0].values.map(r => r[1]) : [];
+    if (!plateColNames.includes('hsn_code')) db.run("ALTER TABLE number_plates ADD COLUMN hsn_code TEXT DEFAULT ''");
+    if (!plateColNames.includes('fitting_date')) db.run("ALTER TABLE number_plates ADD COLUMN fitting_date TEXT DEFAULT ''");
+    if (!plateColNames.includes('challan_date')) db.run("ALTER TABLE number_plates ADD COLUMN challan_date TEXT DEFAULT ''");
+  } catch (e2) {}
 
   saveDb();
 

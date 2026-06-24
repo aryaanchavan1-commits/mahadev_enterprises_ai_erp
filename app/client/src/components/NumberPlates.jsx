@@ -9,7 +9,7 @@ export default function NumberPlates() {
   const [toast, setToast] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [form, setForm] = useState({ customer_name: '', phone: '', plate_number: '', plate_type: 'standard', order_date: new Date().toISOString().split('T')[0], delivery_date: '', amount: 0, notes: '' });
+  const [form, setForm] = useState({ customer_name: '', phone: '', plate_number: '', hsn_code: '', plate_type: 'standard', order_date: new Date().toISOString().split('T')[0], fitting_date: '', challan_date: '', delivery_date: '', amount: 0, notes: '' });
 
   const showToast = (msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -103,8 +103,9 @@ export default function NumberPlates() {
           <h3 style={{ marginBottom: 12 }}>{editPlate ? 'Edit Order' : 'New Number Plate Order'}</h3>
           <div className="form-row">
             <div className="form-group"><label>Customer Name *</label><input value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} /></div>
-            <div className="form-group"><label>Phone</label><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="form-group"><label>Phone *</label><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
             <div className="form-group"><label>Plate Number *</label><input value={form.plate_number} onChange={e => setForm({ ...form, plate_number: e.target.value.toUpperCase() })} placeholder="MH 01 AB 1234" /></div>
+            <div className="form-group"><label>HSN Code</label><input value={form.hsn_code} onChange={e => setForm({ ...form, hsn_code: e.target.value })} placeholder="e.g. 8708" /></div>
           </div>
           <div className="form-row">
             <div className="form-group">
@@ -117,8 +118,12 @@ export default function NumberPlates() {
               </select>
             </div>
             <div className="form-group"><label>Order Date</label><input type="date" value={form.order_date} onChange={e => setForm({ ...form, order_date: e.target.value })} /></div>
+            <div className="form-group"><label>Fitting Date</label><input type="date" value={form.fitting_date} onChange={e => setForm({ ...form, fitting_date: e.target.value })} /></div>
+            <div className="form-group"><label>Challan Date</label><input type="date" value={form.challan_date} onChange={e => setForm({ ...form, challan_date: e.target.value })} /></div>
             <div className="form-group"><label>Delivery Date</label><input type="date" value={form.delivery_date} onChange={e => setForm({ ...form, delivery_date: e.target.value })} /></div>
-            <div className="form-group"><label>Amount (₹)</label><input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label>Amount (₹)</label><input value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} /></div>
           </div>
           <div className="form-group"><label>Notes</label><textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
           <div style={{ display: 'flex', gap: 8 }}>

@@ -31,8 +31,8 @@ router.post('/', (req, res) => {
     if (!customer_name) return res.status(400).json({ success: false, error: 'Customer name required' });
     if (!plate_number) return res.status(400).json({ success: false, error: 'Plate number required' });
 
-    run('INSERT INTO number_plates (customer_name, phone, plate_number, plate_type, order_date, delivery_date, status, amount, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [customer_name, phone || '', plate_number.toUpperCase(), plate_type || 'standard', order_date || new Date().toISOString().split('T')[0], delivery_date || '', 'pending', amount || 0, notes || '']);
+    run('INSERT INTO number_plates (customer_name, phone, plate_number, hsn_code, plate_type, order_date, fitting_date, challan_date, delivery_date, status, amount, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [customer_name, phone || '', plate_number.toUpperCase(), hsn_code || '', plate_type || 'standard', order_date || new Date().toISOString().split('T')[0], fitting_date || '', challan_date || '', delivery_date || '', 'pending', amount || 0, notes || '']);
     saveDb();
 
     res.json({ success: true, data: { id: lastInsertRowid(), customer_name, plate_number: plate_number.toUpperCase(), status: 'pending' } });

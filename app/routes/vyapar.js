@@ -371,11 +371,6 @@ async function importFromVyp(vypDb, opts) {
         try {
           run("INSERT INTO stock_movements (product_id, type, quantity_change, reference, notes) VALUES (?, ?, ?, ?, ?)",
             [pid, t, sign * qty, `VYP-ADJ-${safeInt(a.item_adj_id)}`, safeStr(a.item_adj_description) || 'Vyapar adjustment']);
-          if (atype !== 2) {
-            run("UPDATE products SET quantity = MAX(0, quantity + ?) WHERE id = ?", [qty, pid]);
-          } else {
-            run("UPDATE products SET quantity = MAX(0, quantity - ?) WHERE id = ?", [qty, pid]);
-          }
           result.adjustments++;
         } catch (e) {}
       }
