@@ -468,6 +468,13 @@ export default function SalesPOS() {
               {shopSettings.upi_id && <span> | UPI: {shopSettings.upi_id}</span>}
             </div>
           )}
+          {shopSettings.upi_id && (
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>Scan to Pay via UPI</p>
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=${shopSettings.upi_id}&pn=${encodeURIComponent(shopSettings.company_name||'Shop')}&am=${Number(lastInvoice.grand_total).toFixed(2)}&tn=INV-${lastInvoice.invoice_number}`} alt="UPI QR" style={{ width: 120, height: 120 }} />
+              <p style={{ fontSize: 10, color: '#999' }}>₹{Number(lastInvoice.grand_total).toFixed(2)} via {shopSettings.upi_id}</p>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
             <button className="btn btn-success" onClick={() => {
               const r = lastInvoice;

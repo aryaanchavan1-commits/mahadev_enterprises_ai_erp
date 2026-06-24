@@ -112,7 +112,7 @@ function createExpressApp(dataDir) {
 
 async function startServer(dataDir) {
   const { server, getDb } = createExpressApp(dataDir);
-  await getDb();
+  try { await getDb(); } catch (e) { emergLog('DB warning: ' + e.message); }
 
   return new Promise((resolve, reject) => {
     const listener = server.listen(PORT, '127.0.0.1', () => {
@@ -121,7 +121,13 @@ async function startServer(dataDir) {
     });
     listener.on('error', (err) => {
       emergLog('Server error: ' + err.message);
-      reject(err);
+      // Try alternate port
+      if (err.code === 'EADDRINUSE') {
+        emergLog('Port ' + PORT + ' in use, trying alternate...');
+        reject(new Error('Port ' + PORT + ' is already in use. Close other apps and try again.'));
+      } else {
+        reject(err);
+      }
     });
   });
 }
@@ -157,7 +163,21 @@ function createWindow() {
 
   mainWindow.webContents.on('did-fail-load', (e, code, desc) => {
     emergLog('Page load failed: ' + code + ' ' + desc);
+    // Retry loading after 2 seconds
+    setTimeout(() => {
+      if (mainWindow) {
+        try { mainWindow.loadURL(`http://127.0.0.1:${PORT}`); } catch {}
+      }
+    }, 2000);
   });
+
+  // Show window after timeout even if ready-to-show doesn't fire
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show();
+      mainWindow.maximize();
+    }
+  }, 10000);
 
   mainWindow.on('close', (e) => {
     if (tray && !app.isQuitting) {
