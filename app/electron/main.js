@@ -8,6 +8,12 @@ try {
   if (autoUpdater) {
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'aryaanchavan1-commits',
+      repo: 'mahadev_enterprises_ai_erp',
+      releaseType: 'release'
+    });
   }
 } catch (e) {
   // electron-updater not available - auto-update disabled

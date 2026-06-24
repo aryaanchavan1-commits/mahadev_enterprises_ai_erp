@@ -297,6 +297,14 @@ export default function Settings() {
               await fetch(`${API}/ai/history`, { method: 'DELETE' });
               showToast('AI chat history cleared');
             }}>🗑️ Clear AI History</button>
+            <button className="btn btn-sm btn-info" onClick={() => {
+              if (window.electronAPI?.checkForUpdates) {
+                window.electronAPI.checkForUpdates();
+                showToast('Checking for updates...');
+              } else {
+                window.open('https://github.com/aryaanchavan1-commits/mahadev_enterprises_ai_erp/releases', '_blank');
+              }
+            }}>🔄 Check for Updates</button>
           </div>
         </div>
 

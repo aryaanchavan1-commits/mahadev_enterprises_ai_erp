@@ -225,6 +225,22 @@ export default function SalesPOS() {
             <input type="checkbox" checked={gstEnabled} onChange={e => setGstEnabled(e.target.checked)} style={{ width: 18, height: 18 }} />
             <span style={{ fontWeight: 600 }}>GST {gstEnabled ? 'ON' : 'OFF'}</span>
           </label>
+          {gstEnabled && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 12, color: '#666' }}>Default GST:</span>
+              <select value={customGst} onChange={e => {
+                const newGst = Number(e.target.value);
+                setCustomGst(newGst);
+                setCart(cart.map(i => ({ ...i, gst_percentage: newGst })));
+              }} style={{ width: 70, fontSize: 12, padding: '4px 6px' }}>
+                <option value={0}>0%</option>
+                <option value={5}>5%</option>
+                <option value={12}>12%</option>
+                <option value={18}>18%</option>
+                <option value={28}>28%</option>
+              </select>
+            </div>
+          )}
           <div style={{ width: 1, height: 24, background: '#ddd' }} />
           {/* Payment Mode */}
           <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} style={{ width: 100, fontSize: 12 }}>
@@ -341,19 +357,47 @@ export default function SalesPOS() {
                       <button onClick={() => removeFromCart(item.product_id)} style={{ width: 20, height: 20, border: 'none', background: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: 14 }}>✕</button>
                     </div>
                     {/* Per-item controls */}
-                    <div style={{ display: 'flex', gap: 6, marginTop: 4, fontSize: 11 }}>
+                    <div style={{ display: 'flex', gap: 6, marginTop: 4, fontSize: 11, alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ color: '#666' }}>₹</span>
-                        <input type="number" value={price} onChange={e => updateCustomPrice(item.product_id, Number(e.target.value))} style={{ width: 70, padding: '2px 4px', fontSize: 11 }} step="0.01" />
+                        <select value={price} onChange={e => {
+                          const val = Number(e.target.value);
+                          if (val === -1) {
+                            // Custom price - keep current
+                          } else {
+                            updateCustomPrice(item.product_id, val);
+                          }
+                        }} style={{ width: 80, padding: '2px 4px', fontSize: 11 }}>
+                          <option value={item.sell_price}>₹{item.sell_price} (Retail)</option>
+                          {item.wholesale_price && item.wholesale_price !== item.sell_price && (
+                            <option value={item.wholesale_price}>₹{item.wholesale_price} (Wholesale)</option>
+                          )}
+                          <option value={price}>₹{price} (Custom)</option>
+                        </select>
+                        <input type="number" value={price} onChange={e => updateCustomPrice(item.product_id, Number(e.target.value))} style={{ width: 60, padding: '2px 4px', fontSize: 11 }} step="0.01" placeholder="Custom" />
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ color: '#666' }}>Disc%</span>
-                        <input type="number" value={item.discount_percent || 0} onChange={e => updateItemDiscount(item.product_id, Number(e.target.value))} style={{ width: 45, padding: '2px 4px', fontSize: 11 }} min="0" max="100" />
+                        <select value={item.discount_percent || 0} onChange={e => updateItemDiscount(item.product_id, Number(e.target.value))} style={{ width: 60, padding: '2px 4px', fontSize: 11 }}>
+                          <option value={0}>0%</option>
+                          <option value={5}>5%</option>
+                          <option value={10}>10%</option>
+                          <option value={15}>15%</option>
+                          <option value={20}>20%</option>
+                          <option value={25}>25%</option>
+                          <option value={30}>30%</option>
+                        </select>
                       </div>
                       {gstEnabled && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <span style={{ color: '#666' }}>GST%</span>
-                          <input type="number" value={item.gst_percentage} onChange={e => updateItemGst(item.product_id, Number(e.target.value))} style={{ width: 45, padding: '2px 4px', fontSize: 11 }} min="0" max="100" />
+                          <select value={item.gst_percentage} onChange={e => updateItemGst(item.product_id, Number(e.target.value))} style={{ width: 60, padding: '2px 4px', fontSize: 11 }}>
+                            <option value={0}>0%</option>
+                            <option value={5}>5%</option>
+                            <option value={12}>12%</option>
+                            <option value={18}>18%</option>
+                            <option value={28}>28%</option>
+                          </select>
                         </div>
                       )}
                     </div>
@@ -376,8 +420,16 @@ export default function SalesPOS() {
               {/* Additional Discount */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <span style={{ fontSize: 12 }}>Extra Discount:</span>
+                <select value={customDiscount} onChange={e => setCustomDiscount(Number(e.target.value))} style={{ width: 80, padding: '2px 6px', fontSize: 12 }}>
+                  <option value={0}>₹0</option>
+                  <option value={50}>₹50</option>
+                  <option value={100}>₹100</option>
+                  <option value={200}>₹200</option>
+                  <option value={500}>₹500</option>
+                  <option value={1000}>₹1000</option>
+                </select>
+                <span style={{ fontSize: 11, color: '#999' }}>or type:</span>
                 <input type="number" value={customDiscount} onChange={e => setCustomDiscount(Number(e.target.value))} style={{ width: 80, padding: '2px 6px', fontSize: 12 }} min="0" placeholder="₹0" />
-                <span style={{ fontSize: 11, color: '#999' }}>₹</span>
               </div>
               {additionalDiscount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4, color: '#27ae60' }}>
