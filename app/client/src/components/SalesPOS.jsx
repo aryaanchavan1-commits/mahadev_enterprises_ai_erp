@@ -18,7 +18,7 @@ export default function SalesPOS() {
   const [billingType, setBillingType] = useState('b2c');
   const [showCheckout, setShowCheckout] = useState(false);
   const [customDiscount, setCustomDiscount] = useState(0);
-  const [customDiscountPercent, setCustomDiscountPercent] = useState(0);
+  const [customGst, setCustomGst] = useState(18);
   const [totalEditMode, setTotalEditMode] = useState(false);
   const [editedTotal, setEditedTotal] = useState(0);
   const printRef = useRef(null);
