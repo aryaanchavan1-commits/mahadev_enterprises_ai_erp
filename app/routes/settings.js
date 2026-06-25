@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const fs = require('fs');
-const { get, all, run, dataDir } = require('../db');
+const { get, all, run, saveDb, dataDir } = require('../db');
 
 router.get('/', (req, res) => {
   try {
@@ -57,7 +57,7 @@ router.get('/backup/info', (req, res) => {
 });
 
 // Backup - copy database to user-specified location
-router.post('/backup/create', express.json(), (req, res) => {
+router.post('/backup/create', (req, res) => {
   try {
     const { backupPath } = req.body;
     if (!backupPath) return res.status(400).json({ success: false, error: 'Backup path required' });
@@ -110,7 +110,7 @@ router.post('/backup/create', express.json(), (req, res) => {
 });
 
 // Restore - copy database from user-specified location
-router.post('/restore', express.json(), (req, res) => {
+router.post('/restore', (req, res) => {
   try {
     const { backupPath } = req.body;
     if (!backupPath) return res.status(400).json({ success: false, error: 'Backup path required' });
@@ -129,7 +129,7 @@ router.post('/restore', express.json(), (req, res) => {
 });
 
 // Delete all data
-router.post('/vanish', express.json(), (req, res) => {
+router.post('/vanish', (req, res) => {
   try {
     const { confirm } = req.body;
     if (confirm !== 'YES_DELETE_ALL') return res.status(400).json({ success: false, error: 'Confirmation required' });
