@@ -144,3 +144,5 @@ router.post('/vanish', (req, res) => {
     res.json({ success: true, message: 'All data has been deleted. App will restart with default settings.' });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
+
+module.exports = router;
