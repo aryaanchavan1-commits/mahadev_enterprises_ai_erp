@@ -85,9 +85,9 @@ router.post('/:id/sales', (req, res) => {
     if (barcode && !product_id) {
       const product = get('SELECT * FROM products WHERE barcode = ?', [barcode]);
       if (product) {
-        productName = product.name;
+        productName = productName || product.name;
         productId = product.id;
-        price = product.sell_price;
+        if (!price || price <= 0) price = product.sell_price;
         barcodeValue = product.barcode;
       } else {
         return res.status(404).json({ success: false, error: `Product with barcode ${barcode} not found` });

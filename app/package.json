@@ -68,9 +68,6 @@
       "!node_modules/concurrently/**",
       "!node_modules/wait-on/**",
       "!node_modules/.cache/**",
-      "!node_modules/sharp/**",
-      "!node_modules/@img/**",
-      "!node_modules/call-bind-apply-helpers/**",
       "package.json"
     ],
     "win": {
