@@ -159,7 +159,7 @@ export default function SalesPOS() {
           payment_mode: paymentMode,
           gst_enabled: gstEnabled,
           billing_type: billingType,
-          discount_amount: additionalDiscount
+          discount_amount: totalDiscount
         })
       });
       const d = await r.json();
@@ -416,9 +416,8 @@ export default function SalesPOS() {
             </div>
             <div style={{ borderTop: '2px solid #eee', paddingTop: 12, marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}><span>Subtotal:</span><span>₹{cartSubtotal.toFixed(2)}</span></div>
-              {cartItemDiscount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4, color: '#27ae60' }}><span>Item Discount:</span><span>-₹{cartItemDiscount.toFixed(2)}</span></div>}
-              {additionalDiscount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4, color: '#27ae60' }}><span>Extra Discount:</span><span>-₹{additionalDiscount.toFixed(2)}</span></div>}
-              {gstEnabled && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}><span>GST:</span><span>₹{cartGstAmount.toFixed(2)}</span></div>}
+              {totalDiscount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4, color: '#27ae60' }}><span>Discount:</span><span>-₹{totalDiscount.toFixed(2)}</span></div>}
+              {gstEnabled && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}><span>GST ({customGst}%):</span><span>₹{totalGstAmount.toFixed(2)}</span></div>}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 20, fontWeight: 700, marginTop: 8 }}><span>TOTAL:</span><span>₹{grandTotal.toFixed(2)}</span></div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
