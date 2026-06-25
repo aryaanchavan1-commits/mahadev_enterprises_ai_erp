@@ -123,17 +123,23 @@ export default function AIChat() {
   const handleAnalyze = async (type) => {
     setLoading(true);
     try {
-      const r = await fetch(`${API}/ai/analyze`, {
+      const contextMap = {
+        inventory: 'Analyze my inventory data. Give me insights on stock levels, low stock products, and what needs restocking.',
+        sales: 'Analyze my sales data. Give me insights on revenue, top products, and daily trends.',
+        customers: 'Analyze my customer data. Give me insights on repeat customers, top spenders, and customer behavior.',
+      };
+      const message = contextMap[type] || `Analyze my ${type} data.`;
+      const r = await fetch(`${API}/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type })
+        body: JSON.stringify({ message, mode: 'agent' })
       });
       const d = await r.json();
       if (d.success) {
         setMessages(prev => [
           ...prev,
           { role: 'user', content: `Analyze my ${type} data.` },
-          { role: 'assistant', content: d.data.analysis }
+          { role: 'assistant', content: d.data.content || d.data.response }
         ]);
       }
     } catch (err) {

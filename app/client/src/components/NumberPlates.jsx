@@ -53,7 +53,7 @@ export default function NumberPlates() {
 
   const openEdit = (plate) => {
     setEditPlate(plate);
-    setForm({ customer_name: plate.customer_name, phone: plate.phone, plate_number: plate.plate_number, plate_type: plate.plate_type, order_date: plate.order_date, delivery_date: plate.delivery_date, amount: plate.amount, notes: plate.notes });
+    setForm({ customer_name: plate.customer_name, phone: plate.phone, plate_number: plate.plate_number, hsn_code: plate.hsn_code || '', plate_type: plate.plate_type, order_date: plate.order_date, fitting_date: plate.fitting_date || '', challan_date: plate.challan_date || '', delivery_date: plate.delivery_date, amount: plate.amount, notes: plate.notes });
   };
 
   const statusColors = { pending: '#f59e0b', in_progress: '#3b82f6', ready: '#10b981', delivered: '#6b7280', cancelled: '#ef4444' };

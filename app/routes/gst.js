@@ -500,11 +500,12 @@ router.get('/gstr1', (req, res) => {
     });
 
     const summary = {
-      period: `${startDate} to ${endDate}`, total_sales: sales.length,
-      total_taxable: Math.round(sales.reduce((a, s) => a + s.subtotal - s.discount_total, 0) * 100) / 100,
-      total_cgst: Math.round(sales.reduce((a, s) => a + s.cgst_total, 0) * 100) / 100,
-      total_sgst: Math.round(sales.reduce((a, s) => a + s.sgst_total, 0) * 100) / 100,
-      total_igst: Math.round(sales.reduce((a, s) => a + s.igst_total, 0) * 100) / 100,
+      period: `${startDate} to ${endDate}`, totalSales: sales.length,
+      totalTaxable: Math.round(sales.reduce((a, s) => a + s.subtotal - s.discount_total, 0) * 100) / 100,
+      totalCgst: Math.round(sales.reduce((a, s) => a + s.cgst_total, 0) * 100) / 100,
+      totalSgst: Math.round(sales.reduce((a, s) => a + s.sgst_total, 0) * 100) / 100,
+      totalIgst: Math.round(sales.reduce((a, s) => a + s.igst_total, 0) * 100) / 100,
+      totalGst: Math.round(sales.reduce((a, s) => a + s.cgst_total + s.sgst_total + s.igst_total, 0) * 100) / 100,
     };
 
     res.json({ success: true, data: { summary, b2b, b2c, hsn_summary: Object.values(hsnSummary) } });

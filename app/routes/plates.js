@@ -27,7 +27,7 @@ router.get('/:id', (req, res) => {
 // Create number plate order
 router.post('/', (req, res) => {
   try {
-    const { customer_name, phone, plate_number, plate_type, order_date, delivery_date, amount, notes } = req.body;
+    const { customer_name, phone, plate_number, hsn_code, plate_type, order_date, fitting_date, challan_date, delivery_date, amount, notes } = req.body;
     if (!customer_name) return res.status(400).json({ success: false, error: 'Customer name required' });
     if (!plate_number) return res.status(400).json({ success: false, error: 'Plate number required' });
 

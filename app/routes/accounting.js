@@ -96,6 +96,7 @@ router.post('/credit-notes', (req, res) => {
 
     run('INSERT INTO credit_notes (credit_note_number, sale_id, customer_id, customer_name, credit_date, reason, items, subtotal, gst_amount, total) VALUES (?,?,?,?,?,?,?,?,?,?)',
       [cnNumber, sale_id || null, customer_id || null, customer_name || '', new Date().toISOString().split('T')[0], reason || '', JSON.stringify(items), subtotal, gstAmount, total]);
+    const cnId = lastInsertRowid();
 
     // Restore stock
     for (const item of items) {
@@ -119,7 +120,7 @@ router.post('/credit-notes', (req, res) => {
       run('INSERT INTO journal_entry_lines (entry_id, account_id, debit, credit) VALUES (?,?,?,?)', [jeId, receivableAccount.id, 0, total]);
     }
 
-    res.json({ success: true, data: { id: lastInsertRowid(), credit_note_number: cnNumber, total } });
+    res.json({ success: true, data: { id: cnId, credit_note_number: cnNumber, total } });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
@@ -143,6 +144,7 @@ router.post('/debit-notes', (req, res) => {
 
     run('INSERT INTO debit_notes (debit_note_number, purchase_id, supplier_id, supplier_name, debit_date, reason, items, subtotal, gst_amount, total) VALUES (?,?,?,?,?,?,?,?,?,?)',
       [dnNumber, purchase_id || null, supplier_id || null, supplier_name || '', new Date().toISOString().split('T')[0], reason || '', JSON.stringify(items), subtotal, gstAmount, total]);
+    const dnId = lastInsertRowid();
 
     // Reduce stock
     for (const item of items) {
@@ -166,7 +168,7 @@ router.post('/debit-notes', (req, res) => {
       if (gstOutputAccount && gstAmount > 0) run('INSERT INTO journal_entry_lines (entry_id, account_id, debit, credit) VALUES (?,?,?,?)', [jeId, gstOutputAccount.id, 0, gstAmount]);
     }
 
-    res.json({ success: true, data: { id: lastInsertRowid(), debit_note_number: dnNumber, total } });
+    res.json({ success: true, data: { id: dnId, debit_note_number: dnNumber, total } });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
