@@ -68,7 +68,7 @@ function getIconPath() {
   return null;
 }
 
-function createExpressApp() {
+function createExpressApp(dataDir) {
   const express = require('express');
   const cors = require('cors');
   const { getDb } = require('../db');
