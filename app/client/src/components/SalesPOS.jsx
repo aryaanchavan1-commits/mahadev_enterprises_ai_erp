@@ -444,20 +444,21 @@ export default function SalesPOS() {
             <div style={{ textAlign: 'right' }}><p style={{ fontSize: 12 }}><strong>Customer:</strong> {lastInvoice.customer_name || 'Walk-in'}</p>{lastInvoice.customer_phone && <p style={{ fontSize: 12 }}><strong>Phone:</strong> {lastInvoice.customer_phone}</p>}</div>
           </div>
           <table>
-            <thead><tr><th>Item</th><th>HSN</th><th>Qty</th><th>Rate</th><th>GST%</th><th>Total</th></tr></thead>
+            <thead><tr><th>Item</th><th>HSN</th><th>Qty</th><th>Rate</th>{gstEnabled && <th>GST%</th>}<th>Total</th></tr></thead>
             <tbody>
               {lastInvoice.items?.map((item, i) => {
                 const p = item.sell_price || item.unit_price || 0;
-                return <tr key={i}><td>{item.product_name}</td><td>{item.hsn_code || '-'}</td><td>{item.quantity}</td><td>₹{p.toFixed(2)}</td><td>{item.gst_percentage || 0}%</td><td>₹{(p * item.quantity).toFixed(2)}</td></tr>;
+                return <tr key={i}><td>{item.product_name}</td><td>{item.hsn_code || '-'}</td><td>{item.quantity}</td><td>₹{p.toFixed(2)}</td>{gstEnabled && <td>{item.gst_percentage || 0}%</td>}<td>₹{(p * item.quantity).toFixed(2)}</td></tr>;
               })}
             </tbody>
           </table>
           <div style={{ textAlign: 'right', marginTop: 12 }}>
             <p><strong>Subtotal:</strong> ₹{Number(lastInvoice.subtotal).toFixed(2)}</p>
             {lastInvoice.discount_total > 0 && <p><strong>Discount:</strong> -₹{Number(lastInvoice.discount_total).toFixed(2)}</p>}
-            {lastInvoice.cgst_total > 0 && <p><strong>CGST:</strong> ₹{Number(lastInvoice.cgst_total).toFixed(2)}</p>}
-            {lastInvoice.sgst_total > 0 && <p><strong>SGST:</strong> ₹{Number(lastInvoice.sgst_total).toFixed(2)}</p>}
-            {lastInvoice.igst_total > 0 && <p><strong>IGST:</strong> ₹{Number(lastInvoice.igst_total).toFixed(2)}</p>}
+            {gstEnabled && lastInvoice.cgst_total > 0 && <p><strong>CGST:</strong> ₹{Number(lastInvoice.cgst_total).toFixed(2)}</p>}
+            {gstEnabled && lastInvoice.sgst_total > 0 && <p><strong>SGST:</strong> ₹{Number(lastInvoice.sgst_total).toFixed(2)}</p>}
+            {gstEnabled && lastInvoice.igst_total > 0 && <p><strong>IGST:</strong> ₹{Number(lastInvoice.igst_total).toFixed(2)}</p>}
+            {!gstEnabled && <p style={{ fontSize: 12, color: '#666' }}>(Non-GST Bill)</p>}
             <h3 style={{ fontSize: 18, marginTop: 8 }}>Grand Total: ₹{Number(lastInvoice.grand_total).toFixed(2)}</h3>
           </div>
           {shopSettings.bank_name && (
@@ -477,18 +478,21 @@ export default function SalesPOS() {
             <button className="btn btn-success" onClick={() => {
               const r = lastInvoice;
               const w = window.open('', '_blank', 'width=400');
-              w.document.write(`<!DOCTYPE html><html><head><title>Receipt</title><style>body{font-family:monospace;font-size:11px;padding:10px;max-width:80mm}.c{text-align:center}.b{font-weight:bold}.l{border-top:1px dashed #000;margin:5px 0}.f{display:flex;justify-content:space-between}table{width:100%;font-size:10px;border-collapse:collapse}</style></head><body><div class="c"><h3>${shopSettings.company_name||'Shop'}</h3><p>${shopSettings.company_address||''}</p><p>Ph: ${shopSettings.company_phone||''}</p>${gstEnabled&&shopSettings.company_gstin?`<p class="b">GSTIN: ${shopSettings.company_gstin}</p>`:''}${!gstEnabled?'<p>Non-GST Invoice</p>':''}</div><div class="l"></div><p>Invoice: ${r.invoice_number} | ${r.sale_date}</p><p>Customer: ${r.customer_name||'Walk-in'}</p><div class="l"></div><table>${r.items.map(i=>{const p=i.sell_price||i.unit_price||0;return `<tr><td>${i.product_name}</td><td align="center">${i.quantity}</td><td align="right">₹${p.toFixed(2)}</td><td align="right">₹${(p*i.quantity).toFixed(2)}</td></tr>`}).join('')}</table><div class="l"></div><div class="f"><span>Subtotal</span><span>₹${r.subtotal.toFixed(2)}</span></div>${r.discount_total>0?`<div class="f"><span>Discount</span><span>-₹${r.discount_total.toFixed(2)}</span></div>`:''}${r.cgst_total>0?`<div class="f"><span>CGST</span><span>₹${r.cgst_total.toFixed(2)}</span></div><div class="f"><span>SGST</span><span>₹${r.sgst_total.toFixed(2)}</span></div>`:''}<div class="l"></div><div class="f b" style="font-size:14px"><span>TOTAL</span><span>₹${r.grand_total.toFixed(2)}</span></div><div class="l"></div><p class="c">Thank you!</p><script>window.print();setTimeout(()=>window.close(),500)</script></body></html>`);
+              w.document.write(`<!DOCTYPE html><html><head><title>Receipt</title><style>body{font-family:monospace;font-size:11px;padding:10px;max-width:80mm}.c{text-align:center}.b{font-weight:bold}.l{border-top:1px dashed #000;margin:5px 0}.f{display:flex;justify-content:space-between}table{width:100%;font-size:10px;border-collapse:collapse}</style></head><body><div class="c"><h3>${shopSettings.company_name||'Shop'}</h3><p>${shopSettings.company_address||''}</p><p>Ph: ${shopSettings.company_phone||''}</p>${gstEnabled&&shopSettings.company_gstin?`<p class="b">GSTIN: ${shopSettings.company_gstin}</p>`:''}${!gstEnabled?'<p>Non-GST Invoice</p>':''}</div><div class="l"></div><p>Invoice: ${r.invoice_number} | ${r.sale_date}</p><p>Customer: ${r.customer_name||'Walk-in'}</p><div class="l"></div><table>${r.items.map(i=>{const p=i.sell_price||i.unit_price||0;return `<tr><td>${i.product_name}</td><td align="center">${i.quantity}</td><td align="right">₹${p.toFixed(2)}</td><td align="right">₹${(p*i.quantity).toFixed(2)}</td></tr>`}).join('')}</table><div class="l"></div><div class="f"><span>Subtotal</span><span>₹${r.subtotal.toFixed(2)}</span></div>${r.discount_total>0?`<div class="f"><span>Discount</span><span>-₹${r.discount_total.toFixed(2)}</span></div>`:''}${gstEnabled&&r.cgst_total>0?`<div class="f"><span>CGST</span><span>₹${r.cgst_total.toFixed(2)}</span></div><div class="f"><span>SGST</span><span>₹${r.sgst_total.toFixed(2)}</span></div>`:''}${!gstEnabled?'<div class="f" style="font-size:10px;color:#999"><span>(Non-GST Bill)</span></div>':''}<div class="l"></div><div class="f b" style="font-size:14px"><span>TOTAL</span><span>₹${r.grand_total.toFixed(2)}</span></div><div class="l"></div><p class="c">Thank you!</p><script>window.print();setTimeout(()=>window.close(),500)</script></body></html>`);
               w.document.close();
-            }}>🖨️ Print</button>
-            <button className="btn btn-info" onClick={() => window.open(`${API}/gst/bill/${lastInvoice.id}`, '_blank')}>📄 GST Invoice</button>
-            {lastInvoice.customer_phone && (
-              <button className="btn" style={{ background: '#25D366', color: '#fff' }} onClick={() => {
-                const phone = lastInvoice.customer_phone.replace(/[^0-9]/g, '');
-                const items = (lastInvoice.items || []).map(i => { const p = i.sell_price || i.unit_price || 0; return `${i.product_name} x${i.quantity} = ₹${(p * i.quantity).toFixed(2)}`; }).join('%0A');
-                const msg = `*${shopSettings.company_name || 'Shop'}*%0A%0AInvoice: ${lastInvoice.invoice_number}%0A%0A*Items:*%0A${items}%0A%0A*Total: ₹${lastInvoice.grand_total.toFixed(2)}*%0A${shopSettings.upi_id ? `%0AUPI: ${shopSettings.upi_id}` : ''}`;
+            }}>🖨️ Print Receipt</button>
+            <button className="btn btn-info" onClick={() => window.open(`${API}/gst/bill/${lastInvoice.id}`, '_blank')}>📄 GST Bill PDF</button>
+            <button className="btn" style={{ background: '#25D366', color: '#fff' }} onClick={() => {
+              const r = lastInvoice;
+              const phone = r.customer_phone?.replace(/[^0-9]/g, '') || '';
+              const items = (r.items || []).map(i => { const p = i.sell_price || i.unit_price || 0; return `${i.product_name} x${i.quantity} = ₹${(p * i.quantity).toFixed(2)}`; }).join('%0A');
+              const msg = `*${shopSettings.company_name || 'Shop'}*%0A%0AInvoice: ${r.invoice_number}%0ADate: ${r.sale_date}%0A%0A*Items:*%0A${items}%0A%0ASubtotal: ₹${r.subtotal.toFixed(2)}%0A${r.discount_total > 0 ? `Discount: -₹${r.discount_total.toFixed(2)}%0A` : ''}${gstEnabled && r.cgst_total > 0 ? `CGST: ₹${r.cgst_total.toFixed(2)}%0ASGST: ₹${r.sgst_total.toFixed(2)}%0A` : ''}*Total: ₹${r.grand_total.toFixed(2)}*%0A%0APayment: ${(r.payment_mode || 'cash').toUpperCase()}${shopSettings.upi_id ? `%0AUPI: ${shopSettings.upi_id}` : ''}`;
+              if (phone) {
                 window.open(`https://wa.me/91${phone}?text=${msg}`, '_blank');
-              }}>📱 WhatsApp</button>
-            )}
+              } else {
+                window.open(`https://wa.me/?text=${msg}`, '_blank');
+              }
+            }}>📱 WhatsApp</button>
             <button className="btn btn-outline" onClick={() => setLastInvoice(null)}>✕ Close</button>
           </div>
         </div>

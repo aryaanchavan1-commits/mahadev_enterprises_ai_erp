@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useReactToPrint } from 'react-to-print';
+import React, { useState, useEffect, useRef } from 'react';
 
 const API = '/api';
 
@@ -7,10 +6,8 @@ export default function BarcodeManager() {
   const [products, setProducts] = useState([]);
   const [scannerInput, setScannerInput] = useState('');
   const [scannedProduct, setScannedProduct] = useState(null);
-  const [lastSale, setLastSale] = useState(null);
-  const [mode, setMode] = useState('generate'); // generate, scan, history
+  const [mode, setMode] = useState('generate');
   const [toast, setToast] = useState(null);
-  const [printerStatus, setPrinterStatus] = useState('');
   const scannerRef = useRef(null);
   const printRef = useRef(null);
   const scanTimeout = useRef(null);
@@ -75,28 +72,6 @@ export default function BarcodeManager() {
       }
     } catch (err) {
       showToast('Scanner lookup failed', 'error');
-    }
-  };
-
-  const handleQuickSale = async (product, qty = 1) => {
-    try {
-      const r = await fetch(`${API}/barcode/scan-sale`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ barcode: product.barcode, quantity: qty })
-      });
-      const d = await r.json();
-      if (d.success) {
-        setLastSale(d.data);
-        setScannedProduct(null);
-        showToast(`Sold ${qty}x ${product.name} - Rs.${d.data.sale.grand_total.toFixed(2)}`);
-        // Auto-open receipt
-        window.open(`${API}/sales/${d.data.sale.id}/receipt`, '_blank');
-      } else {
-        showToast(d.error, 'error');
-      }
-    } catch (err) {
-      showToast('Sale failed', 'error');
     }
   };
 
@@ -250,37 +225,15 @@ export default function BarcodeManager() {
                   </div>
                 </div>
                 <div style={{display:'flex', gap:8, marginTop:16}}>
-                  <button className="btn btn-success btn-lg" onClick={() => handleQuickSale(scannedProduct, 1)}>
-                    Quick Sale (Qty: 1) - Rs.{Number(scannedProduct.sell_price).toLocaleString('en-IN')}
-                  </button>
-                  <button className="btn btn-primary" onClick={() => {
-                    const qty = prompt('Enter quantity:', '1');
-                    if (qty && Number(qty) > 0) handleQuickSale(scannedProduct, Number(qty));
-                  }}>
-                    Sale with Custom Qty
-                  </button>
+                  <a href="/pos" className="btn btn-success btn-lg" style={{ textDecoration: 'none' }}>
+                    🛒 Sell in POS - Rs.{Number(scannedProduct.sell_price).toLocaleString('en-IN')}
+                  </a>
                   <button className="btn btn-outline" onClick={() => setScannedProduct(null)}>Cancel</button>
                 </div>
               </div>
             </div>
           )}
 
-          {lastSale && (
-            <div className="card" style={{marginTop:16, borderLeft:'4px solid #3498db'}}>
-              <h3>Last Sale Completed</h3>
-              <p><strong>Invoice:</strong> {lastSale.sale.invoice_number}</p>
-              <p><strong>Product:</strong> {lastSale.product.name}</p>
-              <p><strong>Amount:</strong> Rs.{Number(lastSale.sale.grand_total).toLocaleString('en-IN', {minimumFractionDigits:2})}</p>
-              <div style={{display:'flex', gap:8, marginTop:8}}>
-                <button className="btn btn-success btn-sm" onClick={() => window.open(`${API}/sales/${lastSale.sale.id}/receipt`, '_blank')}>
-                  View & Print Receipt
-                </button>
-                <button className="btn btn-info btn-sm" onClick={() => window.open(`${API}/gst/bill/${lastSale.sale.id}`, '_blank')}>
-                  Download GST Bill
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
