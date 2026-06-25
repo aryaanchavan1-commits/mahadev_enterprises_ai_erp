@@ -18,7 +18,9 @@ export default function SalesPOS() {
   const [billingType, setBillingType] = useState('b2c');
   const [showCheckout, setShowCheckout] = useState(false);
   const [customDiscount, setCustomDiscount] = useState(0);
-  const [customGst, setCustomGst] = useState(0);
+  const [customDiscountPercent, setCustomDiscountPercent] = useState(0);
+  const [totalEditMode, setTotalEditMode] = useState(false);
+  const [editedTotal, setEditedTotal] = useState(0);
   const printRef = useRef(null);
   const barcodeRef = useRef(null);
 
@@ -210,24 +212,26 @@ export default function SalesPOS() {
       <div className="card" style={{ marginBottom: 16, padding: '12px 16px' }}>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Billing Type */}
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 4, background: '#f8fafc', padding: 4, borderRadius: 8, border: '1px solid #e2e8f0' }}>
             {['b2c', 'b2b', 'b2d'].map(type => (
               <button key={type} onClick={() => setBillingType(type)}
-                className={`btn btn-sm ${billingType === type ? 'btn-primary' : 'btn-outline'}`}
-                style={{ fontSize: 11, padding: '6px 12px' }}>
+                style={{ padding: '8px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                  background: billingType === type ? (type === 'b2c' ? '#2563eb' : type === 'b2b' ? '#7c3aed' : '#059669') : 'transparent',
+                  color: billingType === type ? '#fff' : '#64748b',
+                  transition: 'all 0.15s' }}>
                 {type === 'b2c' ? '👤 B2C' : type === 'b2b' ? '🏢 B2B' : '🏭 B2D'}
               </button>
             ))}
           </div>
           <div style={{ width: 1, height: 24, background: '#ddd' }} />
           {/* GST Toggle */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
-            <input type="checkbox" checked={gstEnabled} onChange={e => setGstEnabled(e.target.checked)} style={{ width: 18, height: 18 }} />
-            <span style={{ fontWeight: 600 }}>GST {gstEnabled ? 'ON' : 'OFF'}</span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, background: gstEnabled ? '#f0fdf4' : '#fef2f2', padding: '8px 14px', borderRadius: 8, border: `2px solid ${gstEnabled ? '#86efac' : '#fca5a5'}`, transition: 'all 0.15s' }}>
+            <input type="checkbox" checked={gstEnabled} onChange={e => setGstEnabled(e.target.checked)} style={{ width: 20, height: 20, accentColor: '#16a34a' }} />
+            <span style={{ fontWeight: 600, color: gstEnabled ? '#166534' : '#991b1b' }}>GST {gstEnabled ? 'ON' : 'OFF'}</span>
           </label>
           <div style={{ width: 1, height: 24, background: '#ddd' }} />
           {/* Payment Mode */}
-          <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} style={{ width: 100, fontSize: 12 }}>
+          <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} style={{ width: 110, fontSize: 12, padding: '8px 12px', borderRadius: 8, border: '2px solid #cbd5e1', background: '#fff', fontWeight: 600 }}>
             <option value="cash">💵 Cash</option>
             <option value="upi">📱 UPI</option>
             <option value="card">💳 Card</option>
@@ -359,40 +363,55 @@ export default function SalesPOS() {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
                 <span>Subtotal</span><span>₹{cartSubtotal.toFixed(2)}</span>
               </div>
+              {/* Item Discount Display */}
               {cartItemDiscount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4, color: '#27ae60' }}>
                   <span>Item Discount</span><span>-₹{cartItemDiscount.toFixed(2)}</span>
                 </div>
               )}
-              {/* Additional Discount */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 12 }}>Extra Disc:</span>
-                <input value={customDiscount} onChange={e => setCustomDiscount(Number(e.target.value))} style={{ width: 70, padding: '2px 6px', fontSize: 12 }} placeholder="₹0" />
+              {/* Editable Extra Discount - HIGHLIGHTED */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 4, background: '#fef2f2', padding: '6px 8px', borderRadius: 6, border: '2px solid #fca5a5' }}>
+                <span style={{ fontWeight: 600, color: '#dc2626' }}>📉 Extra Discount</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <input value={customDiscountPercent} onChange={e => { const pct = Number(e.target.value); setCustomDiscountPercent(pct); setCustomDiscount(Math.round(cartSubtotal * pct / 100)); }} style={{ width: 40, padding: '2px 4px', fontSize: 11, textAlign: 'center' }} placeholder="%" />
+                  <span style={{ color: '#666' }}>%</span>
+                  <span style={{ color: '#666' }}>or ₹</span>
+                  <input value={customDiscount} onChange={e => { setCustomDiscount(Number(e.target.value)); setCustomDiscountPercent(Math.round(Number(e.target.value) / Math.max(1, cartSubtotal) * 100)); }} style={{ width: 60, padding: '2px 4px', fontSize: 11, textAlign: 'center' }} placeholder="0" />
+                  <span style={{ color: '#dc2626', fontWeight: 700 }}>-₹{customDiscount.toFixed(2)}</span>
+                </div>
               </div>
-              {additionalDiscount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4, color: '#27ae60' }}>
-                  <span>Extra Discount</span><span>-₹{additionalDiscount.toFixed(2)}</span>
+              {/* Editable GST - HIGHLIGHTED */}
+              {gstEnabled && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 4, background: '#f0f9ff', padding: '6px 8px', borderRadius: 6, border: '2px solid #93c5fd' }}>
+                  <span style={{ fontWeight: 600, color: '#2563eb' }}>📋 GST Total</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input value={cgstTotal + sgstTotal + igstTotal} onChange={e => { /* GST is per-item based, kept display only */ }} style={{ width: 60, padding: '2px 4px', fontSize: 11, textAlign: 'center', background: '#e2e8f0' }} readOnly />
+                    <span style={{ color: '#2563eb', fontWeight: 700 }}>₹{(cgstTotal + sgstTotal + igstTotal).toFixed(2)}</span>
+                  </div>
                 </div>
               )}
               {gstEnabled && cgstTotal > 0 && (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}>
-                    <span>CGST</span><span>₹{cgstTotal.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}>
-                    <span>SGST</span><span>₹{sgstTotal.toFixed(2)}</span>
-                  </div>
-                </>
+                <div style={{ display: 'flex', gap: 16, fontSize: 10, color: '#666', padding: '2px 8px' }}>
+                  <span>CGST ₹{cgstTotal.toFixed(2)}</span>
+                  <span>SGST ₹{sgstTotal.toFixed(2)}</span>
+                </div>
               )}
               {gstEnabled && igstTotal > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}>
-                  <span>IGST</span><span>₹{igstTotal.toFixed(2)}</span>
-                </div>
+                <div style={{ fontSize: 10, color: '#666', padding: '2px 8px' }}>IGST ₹{igstTotal.toFixed(2)}</div>
               )}
               {!gstEnabled && <div style={{ fontSize: 11, color: '#e74c3c', marginBottom: 4 }}>Non-GST Bill</div>}
               <hr />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 18, marginTop: 8 }}>
-                <span>Total</span><span>₹{grandTotal.toFixed(2)}</span>
+              {/* Editable Total - CLICK TO EDIT */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 18, marginTop: 8, background: '#f0fdf4', padding: '8px', borderRadius: 8, border: '2px solid #86efac' }}>
+                <span>Total (Click to edit)</span>
+                {totalEditMode ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input value={editedTotal || grandTotal} onChange={e => setEditedTotal(Number(e.target.value))} style={{ width: 100, fontSize: 16, fontWeight: 700, textAlign: 'right', background: '#fff' }} autoFocus onKeyDown={e => { if (e.key === 'Enter') { setTotalEditMode(false); } }} />
+                    <button className="btn btn-sm btn-success" onClick={() => setTotalEditMode(false)}>OK</button>
+                  </div>
+                ) : (
+                  <span onClick={() => { setEditedTotal(grandTotal); setTotalEditMode(true); }} style={{ cursor: 'pointer' }}>₹{grandTotal.toFixed(2)}</span>
+                )}
               </div>
             </div>
 
