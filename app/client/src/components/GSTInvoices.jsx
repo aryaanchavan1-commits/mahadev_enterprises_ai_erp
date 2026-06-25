@@ -197,8 +197,8 @@ export default function GSTInvoices() {
                       <tbody>
                         {gstr1.b2b.map((e, i) => (
                           <tr key={i}>
-                            <td>{e.invoice}</td><td>{e.date}</td><td>{e.customer}</td><td>{e.gstin}</td>
-                            <td>Rs.{Number(e.taxable).toFixed(2)}</td>
+                            <td>{e.invoice_number}</td><td>{e.invoice_date}</td><td>{e.customer_name}</td><td>{e.customer_gstin}</td>
+                            <td>Rs.{Number(e.taxable_value).toFixed(2)}</td>
                             <td>Rs.{Number(e.cgst).toFixed(2)}</td>
                             <td>Rs.{Number(e.sgst).toFixed(2)}</td>
                             <td><strong>Rs.{Number(e.total).toFixed(2)}</strong></td>
@@ -219,8 +219,8 @@ export default function GSTInvoices() {
                       <tbody>
                         {gstr1.b2c.map((e, i) => (
                           <tr key={i}>
-                            <td>{e.invoice}</td><td>{e.date}</td><td>{e.customer}</td>
-                            <td>Rs.{Number(e.taxable).toFixed(2)}</td>
+                            <td>{e.invoice_number}</td><td>{e.invoice_date}</td><td>{e.customer_name}</td>
+                            <td>Rs.{Number(e.taxable_value).toFixed(2)}</td>
                             <td>Rs.{Number(e.cgst).toFixed(2)}</td>
                             <td>Rs.{Number(e.sgst).toFixed(2)}</td>
                             <td><strong>Rs.{Number(e.total).toFixed(2)}</strong></td>

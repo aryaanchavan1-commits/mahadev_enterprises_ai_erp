@@ -607,7 +607,7 @@ router.get('/report', (req, res) => {
       params.push(`${y}-${String(m).padStart(2, '0')}-${new Date(y, m, 0).getDate()}`);
     }
     const sales = all(`SELECT * FROM sales WHERE ${where} ORDER BY created_at DESC`, params);
-    res.json({ success: true, data: { totalSales: sales.length, totalRevenue: sales.reduce((s, sa) => s + sa.grand_total, 0), sales: sales.map(s => ({ ...s, items: JSON.parse(s.items || '[]') })) } });
+    res.json({ success: true, data: { totalSales: sales.length, totalRevenue: sales.reduce((s, sa) => s + sa.grand_total, 0), totalCgst: sales.reduce((s, sa) => s + sa.cgst_total, 0), totalSgst: sales.reduce((s, sa) => s + sa.sgst_total, 0), totalIgst: sales.reduce((s, sa) => s + sa.igst_total, 0), totalGst: sales.reduce((s, sa) => s + sa.cgst_total + sa.sgst_total + sa.igst_total, 0), sales: sales.map(s => ({ ...s, items: JSON.parse(s.items || '[]') })) } });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 

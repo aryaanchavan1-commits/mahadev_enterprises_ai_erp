@@ -108,7 +108,7 @@ export default function SalesPOS() {
         sell_price: product.sell_price,
         wholesale_price: product.wholesale_price || product.sell_price,
         custom_price: basePrice,
-        gst_percentage: product.gst_percentage || customGst || 18,
+        gst_percentage: product.gst_rate || customGst || 18,
         quantity: 1,
         max_quantity: product.quantity,
         barcode: product.barcode,
