@@ -126,22 +126,16 @@ export default function SalesPOS() {
 
   // Calculate totals
   const cartSubtotal = cart.reduce((s, i) => s + ((i.custom_price || i.sell_price) * i.quantity), 0);
-  const cartItemDiscount = cart.reduce((s, i) => s + (((i.custom_price || i.sell_price) * i.quantity) * (i.discount_percent || 0) / 100), 0);
-  const afterItemDiscount = cartSubtotal - cartItemDiscount;
-  const additionalDiscount = customDiscount || 0;
-  const afterAllDiscount = Math.max(0, afterItemDiscount - additionalDiscount);
-  const cartGstAmount = gstEnabled ? cart.reduce((s, i) => {
-    const price = i.custom_price || i.sell_price;
-    const lineTotal = price * i.quantity;
-    const discAmt = lineTotal * (i.discount_percent || 0) / 100;
-    const taxable = lineTotal - discAmt;
-    return s + (taxable * (i.gst_percentage || 0) / 100);
-  }, 0) : 0;
+  const totalGstPercent = customGst || 0;
+  const totalDiscount = customDiscount || 0;
+  const afterDiscount = Math.max(0, cartSubtotal - totalDiscount);
+  const totalGstAmount = gstEnabled ? afterDiscount * (totalGstPercent / 100) : 0;
   const isInterState = customer.gstin && customer.gstin.substring(0, 2) !== (shopSettings.company_gstin || '27').substring(0, 2);
-  const cgstTotal = gstEnabled ? (isInterState ? 0 : cartGstAmount / 2) : 0;
-  const sgstTotal = gstEnabled ? (isInterState ? 0 : cartGstAmount / 2) : 0;
-  const igstTotal = gstEnabled ? (isInterState ? cartGstAmount : 0) : 0;
-  const grandTotal = afterAllDiscount + cgstTotal + sgstTotal + igstTotal;
+  const cgstTotal = gstEnabled ? (isInterState ? 0 : totalGstAmount / 2) : 0;
+  const sgstTotal = gstEnabled ? (isInterState ? 0 : totalGstAmount / 2) : 0;
+  const igstTotal = gstEnabled ? (isInterState ? totalGstAmount : 0) : 0;
+  const calculatedTotal = afterDiscount + cgstTotal + sgstTotal + igstTotal;
+  const grandTotal = totalEditMode ? (editedTotal || calculatedTotal) : calculatedTotal;
 
   const handleCheckout = async () => {
     if (cart.length === 0) return showToast('Cart is empty', 'error');
@@ -155,8 +149,8 @@ export default function SalesPOS() {
             hsn_code: i.hsn_code,
             quantity: i.quantity,
             sell_price: i.custom_price || i.sell_price,
-            gst_percentage: i.gst_percentage || 0,
-            discount_percent: i.discount_percent || 0
+            gst_percentage: totalGstPercent,
+            discount_percent: 0
           })),
           customer_name: customer.name || 'Walk-in Customer',
           customer_phone: customer.phone,
@@ -338,19 +332,15 @@ export default function SalesPOS() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product_name}</div>
                       </div>
-                      <button onClick={() => updateQty(item.product_id, item.quantity - 1)} style={{ width: 24, height: 24, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer', fontSize: 12 }}>-</button>
-                      <span style={{ width: 24, textAlign: 'center', fontSize: 12, fontWeight: 700 }}>{item.quantity}</span>
-                      <button onClick={() => updateQty(item.product_id, item.quantity + 1)} style={{ width: 24, height: 24, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer', fontSize: 12 }}>+</button>
                       <span style={{ width: 70, textAlign: 'right', fontSize: 12, fontWeight: 600 }}>₹{finalPrice.toFixed(0)}</span>
                       <button onClick={() => removeFromCart(item.product_id)} style={{ width: 20, height: 20, border: 'none', background: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: 14 }}>✕</button>
                     </div>
-                    {/* Per-item controls */}
+                    {/* Per-item controls - MANUAL ONLY */}
                     <div style={{ display: 'flex', gap: 6, marginTop: 4, fontSize: 11, alignItems: 'center' }}>
-                      <input value={price} onChange={e => updateCustomPrice(item.product_id, Number(e.target.value))} style={{ width: 60, padding: '2px 4px', fontSize: 11 }} placeholder="Price" />
-                      <input value={item.discount_percent || 0} onChange={e => updateItemDiscount(item.product_id, Number(e.target.value))} style={{ width: 40, padding: '2px 4px', fontSize: 11 }} placeholder="Disc%" />
-                      {gstEnabled && (
-                        <input value={item.gst_percentage} onChange={e => updateItemGst(item.product_id, Number(e.target.value))} style={{ width: 40, padding: '2px 4px', fontSize: 11 }} placeholder="GST%" />
-                      )}
+                      <span style={{ color: '#666' }}>Qty</span>
+                      <input value={item.quantity} onChange={e => updateQty(item.product_id, Number(e.target.value))} style={{ width: 40, padding: '2px 4px', fontSize: 11 }} />
+                      <span style={{ color: '#666' }}>₹</span>
+                      <input value={price} onChange={e => updateCustomPrice(item.product_id, Number(e.target.value))} style={{ width: 60, padding: '2px 4px', fontSize: 11 }} />
                     </div>
                   </div>
                 );
@@ -360,59 +350,49 @@ export default function SalesPOS() {
 
             {/* Totals */}
             <div style={{ borderTop: '2px solid #eee', paddingTop: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                <span>Subtotal</span><span>₹{cartSubtotal.toFixed(2)}</span>
+              {/* Subtotal */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6, padding: '8px', background: '#f8fafc', borderRadius: 6 }}>
+                <span>Subtotal</span><span style={{ fontWeight: 700 }}>₹{cartSubtotal.toFixed(2)}</span>
               </div>
-              {/* Item Discount Display */}
-              {cartItemDiscount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4, color: '#27ae60' }}>
-                  <span>Item Discount</span><span>-₹{cartItemDiscount.toFixed(2)}</span>
+
+              {/* Discount - RED HIGHLIGHT */}
+              <div style={{ background: '#fef2f2', padding: '10px', borderRadius: 8, border: '2px solid #fca5a5', marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 600, color: '#dc2626', fontSize: 12 }}>📉 Discount</span>
+                  <span style={{ fontWeight: 700, color: '#dc2626', fontSize: 14 }}>-₹{totalDiscount.toFixed(2)}</span>
                 </div>
-              )}
-              {/* Editable Extra Discount - HIGHLIGHTED */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 4, background: '#fef2f2', padding: '6px 8px', borderRadius: 6, border: '2px solid #fca5a5' }}>
-                <span style={{ fontWeight: 600, color: '#dc2626' }}>📉 Extra Discount</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <input value={customDiscountPercent} onChange={e => { const pct = Number(e.target.value); setCustomDiscountPercent(pct); setCustomDiscount(Math.round(cartSubtotal * pct / 100)); }} style={{ width: 40, padding: '2px 4px', fontSize: 11, textAlign: 'center' }} placeholder="%" />
-                  <span style={{ color: '#666' }}>%</span>
-                  <span style={{ color: '#666' }}>or ₹</span>
-                  <input value={customDiscount} onChange={e => { setCustomDiscount(Number(e.target.value)); setCustomDiscountPercent(Math.round(Number(e.target.value) / Math.max(1, cartSubtotal) * 100)); }} style={{ width: 60, padding: '2px 4px', fontSize: 11, textAlign: 'center' }} placeholder="0" />
-                  <span style={{ color: '#dc2626', fontWeight: 700 }}>-₹{customDiscount.toFixed(2)}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <input value={totalDiscount} onChange={e => setCustomDiscount(Number(e.target.value))} style={{ width: 100, padding: '4px 6px', fontSize: 12, textAlign: 'center' }} placeholder="₹ Amount" />
                 </div>
               </div>
-              {/* Editable GST - HIGHLIGHTED */}
+
+              {/* GST - BLUE HIGHLIGHT */}
               {gstEnabled && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 4, background: '#f0f9ff', padding: '6px 8px', borderRadius: 6, border: '2px solid #93c5fd' }}>
-                  <span style={{ fontWeight: 600, color: '#2563eb' }}>📋 GST Total</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <input value={cgstTotal + sgstTotal + igstTotal} onChange={e => { /* GST is per-item based, kept display only */ }} style={{ width: 60, padding: '2px 4px', fontSize: 11, textAlign: 'center', background: '#e2e8f0' }} readOnly />
-                    <span style={{ color: '#2563eb', fontWeight: 700 }}>₹{(cgstTotal + sgstTotal + igstTotal).toFixed(2)}</span>
+                <div style={{ background: '#f0f9ff', padding: '10px', borderRadius: 8, border: '2px solid #93c5fd', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, color: '#2563eb', fontSize: 12 }}>📋 GST</span>
+                    <span style={{ fontWeight: 700, color: '#2563eb', fontSize: 14 }}>₹{totalGstAmount.toFixed(2)}</span>
                   </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <input value={customGst} onChange={e => setCustomGst(Number(e.target.value))} style={{ width: 50, padding: '4px 6px', fontSize: 12, textAlign: 'center' }} placeholder="%" />
+                    <span style={{ fontSize: 11, color: '#666' }}>% = {(cartSubtotal - totalDiscount) * (customGst || 0) / 100} </span>
+                  </div>
+                  {cgstTotal > 0 && <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>CGST ₹{cgstTotal.toFixed(2)} + SGST ₹{sgstTotal.toFixed(2)}</div>}
+                  {igstTotal > 0 && <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>IGST ₹{igstTotal.toFixed(2)}</div>}
                 </div>
               )}
-              {gstEnabled && cgstTotal > 0 && (
-                <div style={{ display: 'flex', gap: 16, fontSize: 10, color: '#666', padding: '2px 8px' }}>
-                  <span>CGST ₹{cgstTotal.toFixed(2)}</span>
-                  <span>SGST ₹{sgstTotal.toFixed(2)}</span>
-                </div>
-              )}
-              {gstEnabled && igstTotal > 0 && (
-                <div style={{ fontSize: 10, color: '#666', padding: '2px 8px' }}>IGST ₹{igstTotal.toFixed(2)}</div>
-              )}
-              {!gstEnabled && <div style={{ fontSize: 11, color: '#e74c3c', marginBottom: 4 }}>Non-GST Bill</div>}
-              <hr />
-              {/* Editable Total - CLICK TO EDIT */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 18, marginTop: 8, background: '#f0fdf4', padding: '8px', borderRadius: 8, border: '2px solid #86efac' }}>
-                <span>Total (Click to edit)</span>
-                {totalEditMode ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <input value={editedTotal || grandTotal} onChange={e => setEditedTotal(Number(e.target.value))} style={{ width: 100, fontSize: 16, fontWeight: 700, textAlign: 'right', background: '#fff' }} autoFocus onKeyDown={e => { if (e.key === 'Enter') { setTotalEditMode(false); } }} />
-                    <button className="btn btn-sm btn-success" onClick={() => setTotalEditMode(false)}>OK</button>
+
+              {/* GRAND TOTAL - GREEN HIGHLIGHT */}
+              <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: 8, border: '2px solid #86efac' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: 16 }}>💰 TOTAL</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input value={grandTotal} onChange={e => { setEditedTotal(Number(e.target.value)); setTotalEditMode(true); }} style={{ width: 130, fontSize: 18, fontWeight: 700, textAlign: 'right', background: '#fff', border: '2px solid #86efac', borderRadius: 6, padding: '4px 8px' }} />
                   </div>
-                ) : (
-                  <span onClick={() => { setEditedTotal(grandTotal); setTotalEditMode(true); }} style={{ cursor: 'pointer' }}>₹{grandTotal.toFixed(2)}</span>
-                )}
+                </div>
               </div>
+
+              {!gstEnabled && <div style={{ fontSize: 11, color: '#e74c3c', textAlign: 'center', marginTop: 4 }}>Non-GST Bill</div>}
             </div>
 
             <button onClick={() => { if (cart.length === 0) return showToast('Cart is empty', 'error'); setShowCheckout(true); }} disabled={cart.length === 0} className="btn btn-success" style={{ width: '100%', marginTop: 12, padding: '14px', fontSize: 16 }}>
