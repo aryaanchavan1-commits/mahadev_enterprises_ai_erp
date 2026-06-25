@@ -317,6 +317,18 @@ export default function Settings() {
                 window.open('https://github.com/aryaanchavan1-commits/mahadev_enterprises_ai_erp/releases', '_blank');
               }
             }}>🔄 Check for Updates</button>
+            <button className="btn btn-sm btn-danger" onClick={async () => {
+              const answer = prompt('Type "YES_DELETE_ALL" to delete ALL data. This cannot be undone!');
+              if (answer !== 'YES_DELETE_ALL') return showToast('Cancelled');
+              if (!confirm('LAST WARNING: All data will be permanently deleted. Continue?')) return;
+              const r = await fetch(`${API}/settings/vanish`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirm: 'YES_DELETE_ALL' })
+              });
+              const d = await r.json();
+              if (d.success) { showToast('All data deleted'); setTimeout(() => window.location.reload(), 1500); }
+              else showToast(d.error || 'Failed', 'error');
+            }} style={{ marginLeft: 'auto' }}>⚠️ Vanish All Data</button>
           </div>
         </div>
 

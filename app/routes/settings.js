@@ -128,4 +128,19 @@ router.post('/restore', express.json(), (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-module.exports = router;
+// Delete all data
+router.post('/vanish', express.json(), (req, res) => {
+  try {
+    const { confirm } = req.body;
+    if (confirm !== 'YES_DELETE_ALL') return res.status(400).json({ success: false, error: 'Confirmation required' });
+    
+    const tables = ['staff_sales', 'staff', 'number_plates', 'journal_entry_lines', 'journal_entries', 
+                    'credit_notes', 'debit_notes', 'stock_movements', 'purchases', 'sales', 
+                    'products', 'parties', 'categories', 'subcategories', 'ai_conversations', 'settings'];
+    for (const table of tables) {
+      run(`DELETE FROM ${table}`);
+    }
+    saveDb();
+    res.json({ success: true, message: 'All data has been deleted. App will restart with default settings.' });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
