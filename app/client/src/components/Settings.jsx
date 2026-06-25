@@ -317,6 +317,14 @@ export default function Settings() {
                 window.open('https://github.com/aryaanchavan1-commits/mahadev_enterprises_ai_erp/releases', '_blank');
               }
             }}>🔄 Check for Updates</button>
+            {window.electronAPI?.isElectron && (
+              <button className="btn btn-sm btn-outline" onClick={async () => {
+                const current = await window.electronAPI.getAutoStart();
+                const next = !current;
+                await window.electronAPI.setAutoStart(next);
+                showToast(next ? 'App will start when Windows starts' : 'Auto-start disabled');
+              }}>🚀 {window.electronAPI?.isElectron ? 'Auto-Start' : 'N/A'}</button>
+            )}
             <button className="btn btn-sm btn-danger" onClick={async () => {
               const answer = prompt('Type "YES_DELETE_ALL" to delete ALL data. This cannot be undone!');
               if (answer !== 'YES_DELETE_ALL') return showToast('Cancelled');

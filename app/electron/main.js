@@ -291,6 +291,17 @@ ipcMain.handle('get-app-version', () => app.getVersion());
 ipcMain.handle('get-data-path', () => app.getPath('userData'));
 ipcMain.handle('open-external', (event, url) => shell.openExternal(url));
 
+// Auto-start on Windows boot
+ipcMain.handle('set-auto-start', (event, enabled) => {
+  try {
+    app.setLoginItemSettings({ openAtLogin: !!enabled, path: app.getPath('exe') });
+    return app.getLoginItemSettings().openAtLogin;
+  } catch { return false; }
+});
+ipcMain.handle('get-auto-start', () => {
+  try { return app.getLoginItemSettings().openAtLogin; } catch { return false; }
+});
+
 // Auto-update
 function checkForUpdates() {
   if (!autoUpdater) return;
